@@ -1,0 +1,30 @@
+{
+  "name": "interview-analyzer-server",
+  "version": "1.0.0",
+  "description": "Interview Analyzer backend API (Express) — English speaking practice & interview analysis",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "dev:all": "npx concurrently --names \"API,APP\" --prefix-colors \"cyan,magenta\" \"nodemon server.js\" \"start cmd /k \\\"cd ../interview-analyzer-mobile && npx expo start\\\"\""
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@lancedb/lancedb": "^0.27.2",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.3",
+    "mammoth": "^1.8.0",
+    "mongoose": "^9.4.1",
+    "multer": "^2.1.1",
+    "pdf-parse": "^1.1.1",
+    "uuid": "^10.0.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "nodemon": "^3.1.4"
+  }
+}

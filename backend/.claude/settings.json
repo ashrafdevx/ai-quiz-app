@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Ashraf Nasib\\Documents\\github\\english-practice-mobile\\src\\api"
+    ]
+  }
+}
