@@ -26,17 +26,21 @@ async function register(req, res, next) {
   try {
     const parsed = registerSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.errors[0].message });
+      return res.status(400).json({
+        success: false,
+        message: parsed.error.errors[0].message,
+        code: 'INVALID_INPUT',
+      });
     }
 
-    console.log("valled", parsed.data);
     const { name, email, password } = parsed.data;
-    console.log("email", email);
     const existing = await User.findOne({ email });
     if (existing) {
-      return res
-        .status(409)
-        .json({ error: "An account with this email already exists." });
+      return res.status(409).json({
+        success: false,
+        message: 'An account with this email already exists.',
+        code: 'CONFLICT',
+      });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -61,19 +65,31 @@ async function login(req, res, next) {
   try {
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.errors[0].message });
+      return res.status(400).json({
+        success: false,
+        message: parsed.error.errors[0].message,
+        code: 'INVALID_INPUT',
+      });
     }
 
     const { email, password } = parsed.data;
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ error: "Invalid email or password." });
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password.',
+        code: 'UNAUTHORIZED',
+      });
     }
 
     const match = await bcrypt.compare(password, user.passwordHash);
     if (!match) {
-      return res.status(401).json({ error: "Invalid email or password." });
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password.',
+        code: 'UNAUTHORIZED',
+      });
     }
 
     user.lastLoginAt = new Date();
@@ -97,7 +113,13 @@ async function login(req, res, next) {
 async function getMe(req, res, next) {
   try {
     const user = await User.findById(req.userId).select("-passwordHash");
-    if (!user) return res.status(404).json({ error: "User not found." });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found.',
+        code: 'NOT_FOUND',
+      });
+    }
     res.json({ user });
   } catch (err) {
     next(err);

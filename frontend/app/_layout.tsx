@@ -19,8 +19,21 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <StatusBar style="light" />
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
+          {/* Auth screens — no animation, no back gesture (never swiped back to) */}
+          <Stack.Screen
+            name="(auth)"
+            options={{ gestureEnabled: false, animation: 'none' }}
+          />
+          {/* Tab shell — no animation, no back gesture (base app layer after login) */}
+          <Stack.Screen
+            name="(tabs)"
+            options={{ gestureEnabled: false, animation: 'none' }}
+          />
+          {/* Session screens — slide in from right, back gesture is intentional */}
+          <Stack.Screen
+            name="session"
+            options={{ animation: 'slide_from_right' }}
+          />
         </Stack>
       </QueryClientProvider>
     </GestureHandlerRootView>

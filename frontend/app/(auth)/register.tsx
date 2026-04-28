@@ -32,7 +32,7 @@ export default function RegisterScreen() {
       setLoading(true);
       await register(name.trim(), email.trim(), password);
     } catch (err: any) {
-      const msg = err?.response?.data?.error ?? 'Registration failed. Please try again.';
+      const msg = err?.response?.data?.message ?? err?.response?.data?.error ?? 'Registration failed. Please try again.';
       Alert.alert('Registration failed', msg);
     } finally {
       setLoading(false);

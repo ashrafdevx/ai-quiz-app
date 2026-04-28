@@ -35,7 +35,7 @@ export default function LoginScreen() {
       await login(email.trim(), password);
     } catch (err: any) {
       const msg =
-        err?.response?.data?.error ?? "Login failed. Please try again.";
+        err?.response?.data?.message ?? err?.response?.data?.error ?? "Login failed. Please try again.";
       Alert.alert("Login failed", msg);
     } finally {
       setLoading(false);

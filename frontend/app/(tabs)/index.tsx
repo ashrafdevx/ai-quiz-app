@@ -56,7 +56,7 @@ export default function HomeScreen() {
         </View>
 
         {/* CTA */}
-        <Pressable style={styles.btnWrapper} onPress={() => router.push('/(tabs)/upload')}>
+        <Pressable style={styles.btnWrapper} onPress={() => router.navigate('/(tabs)/upload')}>
           <LinearGradient
             colors={['#6C63FF', '#A855F7', '#EC4899']}
             start={{ x: 0, y: 0 }}

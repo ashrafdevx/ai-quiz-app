@@ -12,7 +12,9 @@ router.post('/', async (req, res, next) => {
 
   if (!extractedText || !questions || !Array.isArray(questions) || questions.length === 0) {
     return res.status(400).json({
-      error: 'Provide "extractedText" and a non-empty "questions" array.',
+      success: false,
+      message: 'Missing required fields to create a session.',
+      code: 'INVALID_INPUT',
     });
   }
 
@@ -52,7 +54,13 @@ router.get('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const session = await store.read(req.params.id);
-    if (!session) return res.status(404).json({ error: 'Session not found.' });
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found.',
+        code: 'NOT_FOUND',
+      });
+    }
 
     const { extractedText: _, ...response } = session;
     res.json(response);
@@ -71,7 +79,11 @@ router.put('/:id/answer', async (req, res, next) => {
   const { questionId, transcript } = req.body;
 
   if (questionId === undefined || questionId === null) {
-    return res.status(400).json({ error: 'Provide "questionId".' });
+    return res.status(400).json({
+      success: false,
+      message: 'Provide a question ID to save the answer.',
+      code: 'INVALID_INPUT',
+    });
   }
 
   try {
@@ -90,9 +102,19 @@ router.put('/:id/answer', async (req, res, next) => {
 router.post('/:id/complete', async (req, res, next) => {
   try {
     const session = await store.read(req.params.id);
-    if (!session) return res.status(404).json({ error: 'Session not found.' });
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found.',
+        code: 'NOT_FOUND',
+      });
+    }
     if (session.status === 'completed') {
-      return res.status(409).json({ error: 'Session is already completed.' });
+      return res.status(409).json({
+        success: false,
+        message: 'Session is already completed.',
+        code: 'CONFLICT',
+      });
     }
 
     const updated = await store.completeSession(req.params.id, null);

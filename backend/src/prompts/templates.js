@@ -31,7 +31,7 @@ const questionGenerationPrompt = (text, { count, type, difficulty, focusAreas })
 
 Document content:
 """
-${text.slice(0, 12000)}
+${text.slice(0, 6000)}
 """
 
 Generate exactly ${count} ${type} interview questions for a ${difficulty}-level candidate.

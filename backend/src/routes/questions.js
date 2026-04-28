@@ -19,7 +19,9 @@ router.post('/generate', async (req, res, next) => {
 
   if (!text || typeof text !== 'string' || text.trim().length < 50) {
     return res.status(400).json({
-      error: 'Provide a "text" field with at least 50 characters of document content.',
+      success: false,
+      message: 'Please provide document text (at least 50 characters).',
+      code: 'INVALID_INPUT',
     });
   }
 
@@ -29,11 +31,17 @@ router.post('/generate', async (req, res, next) => {
   const validDifficulties = ['junior', 'mid', 'senior'];
 
   if (!validTypes.includes(type)) {
-    return res.status(400).json({ error: `"type" must be one of: ${validTypes.join(', ')}` });
+    return res.status(400).json({
+      success: false,
+      message: `Question type must be one of: ${validTypes.join(', ')}.`,
+      code: 'INVALID_INPUT',
+    });
   }
   if (!validDifficulties.includes(difficulty)) {
     return res.status(400).json({
-      error: `"difficulty" must be one of: ${validDifficulties.join(', ')}`,
+      success: false,
+      message: `Difficulty must be one of: ${validDifficulties.join(', ')}.`,
+      code: 'INVALID_INPUT',
     });
   }
 

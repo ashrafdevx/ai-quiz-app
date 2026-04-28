@@ -75,7 +75,7 @@ export default function UploadScreen() {
     } catch (err: any) {
       Alert.alert(
         'Upload failed',
-        err?.response?.data?.error ?? 'Something went wrong. Please try again.'
+        err?.response?.data?.message ?? err?.response?.data?.error ?? 'Something went wrong. Please try again.'
       );
     } finally {
       setUploading(false);
@@ -168,7 +168,10 @@ export default function UploadScreen() {
         <View style={styles.ctaWrapper}>
           {canGenerate ? (
             <Pressable
-              onPress={() => router.push('/(tabs)/sessions')}
+              onPress={() => {
+                const first = readyDocs[0];
+                router.push(`/session/new?docId=${first._id}&docName=${encodeURIComponent(first.fileName)}`);
+              }}
               style={({ pressed }) => [styles.btnOuter, pressed && { opacity: 0.85 }]}
             >
               <LinearGradient

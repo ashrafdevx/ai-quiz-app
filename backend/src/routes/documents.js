@@ -11,7 +11,11 @@ const Document = require('../models/Document');
  */
 router.post('/upload', upload.single('document'), async (req, res, next) => {
   if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded. Use field name "document".' });
+    return res.status(400).json({
+      success: false,
+      message: 'No file received. Please select a file and try again.',
+      code: 'INVALID_INPUT',
+    });
   }
 
   let doc;
@@ -30,7 +34,11 @@ router.post('/upload', upload.single('document'), async (req, res, next) => {
 
     if (!text || text.trim().length < 20) {
       await Document.findByIdAndUpdate(doc._id, { status: 'failed' });
-      return res.status(422).json({ error: 'Could not extract meaningful text from the file.' });
+      return res.status(422).json({
+        success: false,
+        message: 'Could not extract text from this file. Try a different file.',
+        code: 'UNPROCESSABLE',
+      });
     }
 
     const trimmed = text.trim();
@@ -83,7 +91,11 @@ router.get('/:id', async (req, res, next) => {
   try {
     const doc = await Document.findOne({ _id: req.params.id, userId: req.userId }).lean();
     if (!doc) {
-      return res.status(404).json({ error: 'Document not found.' });
+      return res.status(404).json({
+        success: false,
+        message: 'Document not found.',
+        code: 'NOT_FOUND',
+      });
     }
     res.json({ document: doc });
   } catch (err) {
