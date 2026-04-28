@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.aiquizapp.mobile"
+      "bundleIdentifier": "com.aiquizapp.mobile",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "AI Quiz App needs microphone access to record your spoken answers."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +27,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.aiquizapp.mobile"
+      "package": "com.aiquizapp.mobile",
+      "permissions": ["android.permission.RECORD_AUDIO"]
     },
     "web": {
       "bundler": "metro",
@@ -32,7 +36,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "AI Quiz App needs microphone access to record your spoken answers."
+        }
+      ]
     ]
   }
 }

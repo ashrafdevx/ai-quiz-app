@@ -5,10 +5,12 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { sessionsApi, type Session, type Question } from '../../services/api';
+import { sessionsApi, type Session, type Question, type VoiceAnswerResult } from '../../services/api';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
 import { spacing, radius, screenPadding } from '../../constants/spacing';
+import VoiceRecorder from '../../components/VoiceRecorder';
+import QuestionFeedbackCard from '../../components/QuestionFeedbackCard';
 
 // ── Badge helpers ────────────────────────────────────────────────────────────
 
@@ -84,10 +86,12 @@ export default function SessionScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const [session,  setSession]  = useState<Session | null>(null);
-  const [loading,  setLoading]  = useState(true);
-  const [qIndex,   setQIndex]   = useState(0);
+  const [session,    setSession]    = useState<Session | null>(null);
+  const [loading,    setLoading]    = useState(true);
+  const [qIndex,     setQIndex]     = useState(0);
   const [completing, setCompleting] = useState(false);
+  // Map of questionId → evaluation result, persists across question navigation
+  const [answers, setAnswers] = useState<Record<number, VoiceAnswerResult>>({});
 
   useEffect(() => {
     (async () => {
@@ -117,10 +121,19 @@ export default function SessionScreen() {
   const isFirst = qIndex === 0;
   const isLast  = qIndex === total - 1;
 
+  const handleResult = (result: VoiceAnswerResult) => {
+    setAnswers(prev => ({ ...prev, [result.questionId]: result }));
+  };
+
   const handleComplete = async () => {
+    const answeredCount = Object.keys(answers).length;
+    const totalCount = session?.questions.length ?? 0;
+
     Alert.alert(
       'Complete Session',
-      'Mark this session as done and view your summary?',
+      answeredCount === 0
+        ? 'You haven\'t answered any questions yet. Complete anyway?'
+        : `You answered ${answeredCount} of ${totalCount} question${totalCount !== 1 ? 's' : ''}. View your results?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -129,7 +142,7 @@ export default function SessionScreen() {
             setCompleting(true);
             try {
               await sessionsApi.complete(id);
-              router.replace('/(tabs)/sessions');
+              router.replace({ pathname: '/session/result', params: { id } });
             } catch {
               Alert.alert('Error', 'Could not complete session.');
             } finally {
@@ -180,12 +193,16 @@ export default function SessionScreen() {
         {/* Hint */}
         {q.hint?.length > 0 && <HintCard hints={q.hint} />}
 
-        {/* Voice placeholder (Sprint 4) */}
-        <View style={styles.voicePlaceholder}>
-          <Text style={styles.voiceIcon}>🎙️</Text>
-          <Text style={styles.voiceLabel}>Voice recording</Text>
-          <Text style={styles.voiceSub}>Coming in Sprint 4</Text>
-        </View>
+        {/* Voice recorder / result */}
+        {answers[q.id] ? (
+          <QuestionFeedbackCard result={answers[q.id]} />
+        ) : (
+          <VoiceRecorder
+            sessionId={id}
+            questionId={q.id}
+            onResult={handleResult}
+          />
+        )}
       </ScrollView>
 
       {/* Navigation */}
@@ -292,20 +309,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   hintItem: { fontSize: typography.scale.sm, color: colors.text.secondary, lineHeight: 20 },
-
-  voicePlaceholder: {
-    alignItems: 'center',
-    backgroundColor: colors.bg.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    borderStyle: 'dashed',
-    padding: spacing['2xl'],
-    gap: spacing.sm,
-  },
-  voiceIcon:  { fontSize: 40 },
-  voiceLabel: { fontSize: typography.scale.md, fontWeight: typography.weights.semibold, color: colors.text.secondary },
-  voiceSub:   { fontSize: typography.scale.sm, color: colors.text.muted },
 
   navBar: {
     position: 'absolute',

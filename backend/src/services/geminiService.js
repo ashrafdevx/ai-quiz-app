@@ -10,6 +10,7 @@
  * generative quota is no longer touched during normal app use.
  */
 
+const fs = require('fs');
 const Groq = require('groq-sdk');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
@@ -247,4 +248,24 @@ async function embedText(text) {
   return result.embedding.values;
 }
 
-module.exports = { generateText, generateFromFile, parseJsonResponse, embedText };
+/**
+ * Transcribe an audio file using Groq Whisper.
+ * Supported formats: m4a, mp3, mp4, wav, webm, ogg, flac.
+ *
+ * @param {string} filePath  Absolute path to the audio file on disk
+ * @returns {Promise<string>} Transcribed text
+ */
+async function transcribeAudio(filePath) {
+  return withRetry(async () => {
+    const transcription = await getGroq().audio.transcriptions.create({
+      file: fs.createReadStream(filePath),
+      model: 'whisper-large-v3',
+      response_format: 'json',
+      language: 'en',
+      temperature: 0.0,
+    });
+    return transcription.text ?? '';
+  });
+}
+
+module.exports = { generateText, generateFromFile, parseJsonResponse, embedText, transcribeAudio };

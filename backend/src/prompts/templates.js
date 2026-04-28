@@ -114,4 +114,26 @@ Return ONLY valid JSON — no markdown, no explanation:
 }`;
 };
 
-module.exports = { extractionPrompt, questionGenerationPrompt, feedbackPrompt };
+/**
+ * Builds the prompt to evaluate a single spoken answer immediately after recording.
+ * @param {string} question
+ * @param {string|null} transcript
+ * @param {string[]} hints
+ */
+const singleAnswerEvalPrompt = (question, transcript, hints) =>
+  `You are an expert interview coach evaluating a spoken answer.
+
+Question: ${question}
+Expected key points: ${hints.join('; ')}
+Candidate's answer: ${transcript || '[No answer provided]'}
+
+Evaluate for relevance, completeness, and communication quality.
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "score": <1-10>,
+  "strengths": ["...", "..."],
+  "improvements": ["...", "..."],
+  "suggestedPhrase": "..."
+}`;
+
+module.exports = { extractionPrompt, questionGenerationPrompt, feedbackPrompt, singleAnswerEvalPrompt };

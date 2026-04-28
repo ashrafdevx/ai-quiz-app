@@ -97,6 +97,41 @@ export const feedbackApi = {
   generate: (sessionId: string) => api.post<FeedbackResult>(`/api/feedback/${sessionId}`, {}),
 };
 
+// Voice answer endpoint
+export const voiceAnswerApi = {
+  submit: async (
+    sessionId: string,
+    audioUri: string,
+    questionId: number,
+    duration?: number
+  ): Promise<VoiceAnswerResult> => {
+    const token = await SecureStore.getItemAsync('auth_token');
+
+    const formData = new FormData();
+    formData.append('audio', {
+      uri: audioUri,
+      name: 'answer.m4a',
+      type: 'audio/m4a',
+    } as any);
+    formData.append('questionId', String(questionId));
+    if (duration) formData.append('duration', String(Math.round(duration)));
+
+    const res = await fetch(`${BASE_URL}/api/sessions/${sessionId}/voice-answer`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      console.error(`[API] ${res.status} POST /api/sessions/${sessionId}/voice-answer`, json);
+      const err: any = new Error(json?.message ?? json?.error ?? 'Voice submission failed');
+      err.response = { status: res.status, data: json };
+      throw err;
+    }
+    return json as VoiceAnswerResult;
+  },
+};
+
 // Types
 export interface User {
   id: string;
@@ -189,6 +224,28 @@ export interface FeedbackResult {
     suggestedPhrase: string;
   }[];
   topTips: string[];
+}
+
+export interface SpeechQuality {
+  wordCount: number;
+  wpm: number | null;
+  fillerCount: number;
+  fillerWords: string[];
+  uniqueWordRatio: number;
+}
+
+export interface SingleEvaluation {
+  score: number;
+  strengths: string[];
+  improvements: string[];
+  suggestedPhrase: string;
+}
+
+export interface VoiceAnswerResult {
+  questionId: number;
+  transcript: string;
+  speechQuality: SpeechQuality;
+  evaluation: SingleEvaluation;
 }
 
 export interface UploadResponse {
