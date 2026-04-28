@@ -21,15 +21,29 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
 
   login: async (email, password) => {
-    const { data } = await authApi.login({ email, password });
-    await SecureStore.setItemAsync('auth_token', data.token);
-    set({ token: data.token, user: data.user, isAuthenticated: true });
+    console.log('[login] request', { email });
+    try {
+      const { data } = await authApi.login({ email, password });
+      console.log('[login] response', data);
+      await SecureStore.setItemAsync('auth_token', data.token);
+      set({ token: data.token, user: data.user, isAuthenticated: true });
+    } catch (err) {
+      console.error('[login] error', err);
+      throw err;
+    }
   },
 
   register: async (name, email, password) => {
-    const { data } = await authApi.register({ name, email, password });
-    await SecureStore.setItemAsync('auth_token', data.token);
-    set({ token: data.token, user: data.user, isAuthenticated: true });
+    console.log('[register] request', { name, email });
+    try {
+      const { data } = await authApi.register({ name, email, password });
+      console.log('[register] response', data);
+      await SecureStore.setItemAsync('auth_token', data.token);
+      set({ token: data.token, user: data.user, isAuthenticated: true });
+    } catch (err) {
+      console.error('[register] error', err);
+      throw err;
+    }
   },
 
   logout: async () => {
@@ -46,9 +60,16 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
       const { data } = await authApi.me();
       set({ token, user: data.user, isAuthenticated: true, isLoading: false });
-    } catch {
-      await SecureStore.deleteItemAsync('auth_token');
-      set({ token: null, user: null, isAuthenticated: false, isLoading: false });
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        // Token is invalid/expired — clear it so the user logs in again
+        await SecureStore.deleteItemAsync('auth_token');
+        set({ token: null, user: null, isAuthenticated: false, isLoading: false });
+      } else {
+        // Network error or server down — keep the token, show login screen
+        set({ isLoading: false });
+      }
     }
   },
 }));

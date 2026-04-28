@@ -11,10 +11,11 @@ import { typography } from '../../constants/typography';
 import { spacing, radius, screenPadding } from '../../constants/spacing';
 
 export default function RegisterScreen() {
-  const [name, setName]         = useState('');
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [name, setName]               = useState('');
+  const [email, setEmail]             = useState('');
+  const [password, setPassword]       = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading]         = useState(false);
 
   const register = useAuthStore((s) => s.register);
 
@@ -88,14 +89,19 @@ export default function RegisterScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="min. 8 characters"
-                placeholderTextColor={colors.text.muted}
-                secureTextEntry
-              />
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.inputFlex}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="min. 8 characters"
+                  placeholderTextColor={colors.text.muted}
+                  secureTextEntry={!showPassword}
+                />
+                <Pressable onPress={() => setShowPassword(v => !v)} style={styles.eyeBtn}>
+                  <Text style={styles.eyeText}>{showPassword ? 'Hide' : 'Show'}</Text>
+                </Pressable>
+              </View>
             </View>
 
             <Pressable onPress={handleRegister} disabled={loading} style={styles.btnWrapper}>
@@ -162,6 +168,23 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     fontSize: typography.scale.base,
   },
+  inputRow:   {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg.raised,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radius.md,
+  },
+  inputFlex:  {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    color: colors.text.primary,
+    fontSize: typography.scale.base,
+  },
+  eyeBtn:     { paddingHorizontal: spacing.md, paddingVertical: spacing.md },
+  eyeText:    { color: colors.accent.primary, fontSize: typography.scale.sm, fontWeight: typography.weights.medium },
   btnWrapper: { marginTop: spacing.md },
   btn:        { borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center' },
   btnText:    { color: '#fff', fontSize: typography.scale.md, fontWeight: typography.weights.semibold },

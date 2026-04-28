@@ -56,7 +56,7 @@ export default function HomeScreen() {
         </View>
 
         {/* CTA */}
-        <Pressable style={styles.btnWrapper}>
+        <Pressable style={styles.btnWrapper} onPress={() => router.push('/(tabs)/upload')}>
           <LinearGradient
             colors={['#6C63FF', '#A855F7', '#EC4899']}
             start={{ x: 0, y: 0 }}
@@ -66,8 +66,6 @@ export default function HomeScreen() {
             <Text style={styles.btnText}>Start New Quiz</Text>
           </LinearGradient>
         </Pressable>
-
-        <Text style={styles.comingSoon}>Document upload coming in Sprint 2</Text>
       </View>
     </LinearGradient>
   );
@@ -105,5 +103,4 @@ const styles = StyleSheet.create({
   btnWrapper:  { marginBottom: spacing.xl },
   btn:         { borderRadius: radius.lg, paddingVertical: spacing.lg, alignItems: 'center' },
   btnText:     { color: '#fff', fontSize: typography.scale.md, fontWeight: typography.weights.semibold },
-  comingSoon:  { textAlign: 'center', color: colors.text.muted, fontSize: typography.scale.sm },
 });
