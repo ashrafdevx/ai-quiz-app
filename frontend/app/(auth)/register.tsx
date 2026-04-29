@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
@@ -18,6 +19,7 @@ export default function RegisterScreen() {
   const [loading, setLoading]         = useState(false);
 
   const register = useAuthStore((s) => s.register);
+  const insets   = useSafeAreaInsets();
 
   async function handleRegister() {
     if (!name.trim() || !email.trim() || !password.trim()) {
@@ -49,7 +51,7 @@ export default function RegisterScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing['3xl'], paddingBottom: insets.bottom + spacing['3xl'] }]}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
@@ -143,7 +145,7 @@ const styles = StyleSheet.create({
     width: 250, height: 250, borderRadius: 125,
     backgroundColor: 'rgba(168, 85, 247, 0.08)',
   },
-  container:  { flexGrow: 1, justifyContent: 'center', paddingHorizontal: screenPadding, paddingVertical: spacing['3xl'] },
+  container:  { flexGrow: 1, justifyContent: 'center', paddingHorizontal: screenPadding },
   header:     { alignItems: 'center', marginBottom: spacing['3xl'] },
   logo:       { fontSize: typography.scale['3xl'], fontWeight: typography.weights.black, color: colors.text.primary, letterSpacing: -1 },
   tagline:    { fontSize: typography.scale.sm, color: colors.text.muted, marginTop: spacing.xs },

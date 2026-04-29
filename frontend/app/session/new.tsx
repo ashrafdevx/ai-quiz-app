@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { documentsApi, questionsApi, sessionsApi, type Document } from '../../services/api';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
@@ -34,6 +35,7 @@ function Chip<T extends string>({
 
 export default function NewSessionScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ docId?: string; docName?: string }>();
 
   const [docs,        setDocs]        = useState<Document[]>([]);
@@ -115,7 +117,7 @@ export default function NewSessionScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing['2xl'] }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
@@ -224,7 +226,7 @@ const styles = StyleSheet.create({
   orb1:     { position: 'absolute', top: -100, right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(108, 99, 255, 0.12)' },
   orb2:     { position: 'absolute', bottom: 50, left: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(168, 85, 247, 0.08)' },
   scroll:   { flex: 1 },
-  container: { paddingHorizontal: screenPadding, paddingTop: 60, paddingBottom: 48 },
+  container: { paddingHorizontal: screenPadding },
 
   header:   { marginBottom: spacing['2xl'] },
   backBtn:  { marginBottom: spacing.md },

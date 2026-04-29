@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  ActivityIndicator, Alert,
+  ActivityIndicator, Alert, Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { feedbackApi, sessionsApi, type FeedbackResult, type Session } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import { colors, getScoreColor } from '../../constants/colors';
 import { typography } from '../../constants/typography';
 import { spacing, radius, screenPadding } from '../../constants/spacing';
@@ -23,6 +25,44 @@ function DimensionBar({ label, score }: { label: string; score: number }) {
         <View style={[styles.dimFill, { width: pct as any, backgroundColor: barColor }]} />
       </View>
       <Text style={[styles.dimScore, { color: barColor }]}>{score}/10</Text>
+    </View>
+  );
+}
+
+// ── Score breakdown bar (content vs speech proxy) ────────────────────────────
+
+function ScoreBreakdownCard({ dimensions }: { dimensions: FeedbackResult['dimensions'] }) {
+  // Relevance proxies content quality; clarity + confidence + grammar + vocab proxy speech delivery
+  const contentProxy = Math.round(dimensions.relevance * 10);
+  const speechProxy  = Math.round(
+    ((dimensions.clarity + dimensions.confidence + dimensions.grammar + dimensions.vocabulary) / 4) * 10,
+  );
+  const composite = Math.round(contentProxy * 0.70 + speechProxy * 0.30);
+
+  const contentColor = contentProxy >= 80 ? colors.accent.success : contentProxy >= 55 ? colors.accent.warning : colors.accent.danger;
+  const speechColor  = speechProxy  >= 80 ? colors.accent.success : speechProxy  >= 55 ? colors.accent.warning : colors.accent.danger;
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Score breakdown</Text>
+      <Text style={styles.breakdownFormula}>Composite = Content × 70% + Speech × 30%</Text>
+
+      <View style={styles.breakdownRow}>
+        <BreakdownBlock label="Content" value={contentProxy} color={contentColor} />
+        <Text style={styles.breakdownOp}>×0.7 +</Text>
+        <BreakdownBlock label="Speech"  value={speechProxy}  color={speechColor}  />
+        <Text style={styles.breakdownOp}>×0.3 =</Text>
+        <BreakdownBlock label="Score"   value={composite}    color={getScoreColor(composite)} bold />
+      </View>
+    </View>
+  );
+}
+
+function BreakdownBlock({ label, value, color, bold }: { label: string; value: number; color: string; bold?: boolean }) {
+  return (
+    <View style={styles.breakdownBlock}>
+      <Text style={[styles.breakdownValue, { color }, bold && styles.breakdownValueBold]}>{value}</Text>
+      <Text style={styles.breakdownLabel}>{label}</Text>
     </View>
   );
 }
@@ -77,12 +117,19 @@ function QuestionRow({
 
 export default function ResultScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { refreshUser } = useAuthStore();
 
-  const [session,  setSession]  = useState<Session | null>(null);
-  const [feedback, setFeedback] = useState<FeedbackResult | null>(null);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
+  const [session,      setSession]      = useState<Session | null>(null);
+  const [feedback,     setFeedback]     = useState<FeedbackResult | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState<string | null>(null);
+  const [displayScore, setDisplayScore] = useState(0);
+
+  // Ring entrance animation
+  const ringScale   = useRef(new Animated.Value(0.75)).current;
+  const ringOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     (async () => {
@@ -90,13 +137,13 @@ export default function ResultScreen() {
         const { data: sess } = await sessionsApi.get(id);
         setSession(sess);
 
-        // If feedback already cached on the session use it, else generate
-        if (sess.feedback) {
-          setFeedback(sess.feedback);
-        } else {
-          const { data: fb } = await feedbackApi.generate(id);
-          setFeedback(fb);
-        }
+        const { data: fb } = sess.feedback
+          ? { data: sess.feedback }
+          : await feedbackApi.generate(id);
+        setFeedback(fb);
+
+        // Refresh home screen stats after session is scored
+        refreshUser();
       } catch (err: any) {
         const msg = err?.response?.data?.error ?? 'Could not load results.';
         setError(msg);
@@ -106,6 +153,28 @@ export default function ResultScreen() {
       }
     })();
   }, [id]);
+
+  // Animate score ring + count up number when feedback arrives
+  useEffect(() => {
+    if (!feedback) return;
+
+    Animated.parallel([
+      Animated.spring(ringScale,   { toValue: 1, useNativeDriver: true, tension: 55, friction: 8 }),
+      Animated.timing(ringOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+    ]).start();
+
+    const target = feedback.overall;
+    const steps  = 50;
+    const delay  = 900 / steps; // ~900ms total
+    let step = 0;
+    const timer = setInterval(() => {
+      step++;
+      setDisplayScore(Math.round((step / steps) * target));
+      if (step >= steps) clearInterval(timer);
+    }, delay);
+
+    return () => clearInterval(timer);
+  }, [feedback?.overall]);
 
   if (loading) {
     return (
@@ -136,21 +205,28 @@ export default function ResultScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.lg }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Overall score hero */}
+        {/* ── Overall score hero ── */}
         <View style={styles.hero}>
           <Text style={styles.heroLabel}>{session.documentName}</Text>
-          <View style={[styles.scoreRing, { borderColor: scoreColor }]}>
-            <Text style={[styles.scoreNum, { color: scoreColor }]}>{feedback.overall}</Text>
-            <Text style={styles.scoreMax}>/100</Text>
-          </View>
+
+          <Animated.View style={[styles.scoreRingWrap, { transform: [{ scale: ringScale }], opacity: ringOpacity }]}>
+            <View style={[styles.scoreRing, { borderColor: scoreColor }]}>
+              <Text style={[styles.scoreNum, { color: scoreColor }]}>{displayScore}</Text>
+              <Text style={styles.scoreMax}>/100</Text>
+            </View>
+          </Animated.View>
+
           <Text style={[styles.gradeText, { color: scoreColor }]}>{feedback.grade}</Text>
           <Text style={styles.summaryText}>{feedback.summary}</Text>
         </View>
 
-        {/* Dimensions */}
+        {/* ── Score breakdown ── */}
+        <ScoreBreakdownCard dimensions={feedback.dimensions} />
+
+        {/* ── Communication dimensions ── */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Communication breakdown</Text>
           <DimensionBar label="Clarity"     score={feedback.dimensions.clarity} />
@@ -160,7 +236,7 @@ export default function ResultScreen() {
           <DimensionBar label="Vocabulary"  score={feedback.dimensions.vocabulary} />
         </View>
 
-        {/* Per-question breakdown */}
+        {/* ── Per-question breakdown ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Question breakdown</Text>
           {feedback.questions.map((entry, i) => (
@@ -173,7 +249,7 @@ export default function ResultScreen() {
           ))}
         </View>
 
-        {/* Top tips */}
+        {/* ── Top tips ── */}
         {feedback.topTips?.length > 0 && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Top tips for next time</Text>
@@ -186,7 +262,7 @@ export default function ResultScreen() {
           </View>
         )}
 
-        {/* CTA */}
+        {/* ── CTA ── */}
         <Pressable
           onPress={() => router.replace('/(tabs)/sessions')}
           style={styles.doneBtn}
@@ -215,7 +291,7 @@ const styles = StyleSheet.create({
   orb2:     { position: 'absolute', bottom: 60, left: -80, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(168,85,247,0.07)' },
 
   scroll:    { flex: 1 },
-  container: { paddingHorizontal: screenPadding, paddingTop: 64, gap: spacing['2xl'] },
+  container: { paddingHorizontal: screenPadding, gap: spacing['2xl'] },
 
   loadingText: { fontSize: typography.scale.sm, color: colors.text.muted, marginTop: spacing.md },
   errorText:   { fontSize: typography.scale.md, color: colors.accent.danger, textAlign: 'center' },
@@ -234,10 +310,13 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
     textAlign: 'center',
   },
+  scoreRingWrap: {
+    // wrapper for animated transform (scale + opacity)
+  },
   scoreRing: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
     borderWidth: 4,
     alignItems: 'center',
     justifyContent: 'center',
@@ -246,13 +325,13 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   scoreNum: {
-    fontSize: 40,
+    fontSize: 44,
     fontWeight: typography.weights.bold,
   },
   scoreMax: {
     fontSize: typography.scale.sm,
     color: colors.text.muted,
-    marginTop: 16,
+    marginTop: 18,
   },
   gradeText: {
     fontSize: typography.scale['2xl'],
@@ -279,6 +358,40 @@ const styles = StyleSheet.create({
     fontSize: typography.scale.sm,
     fontWeight: typography.weights.semibold,
     color: colors.text.primary,
+  },
+
+  // Score breakdown
+  breakdownFormula: {
+    fontSize: typography.scale.xs,
+    color: colors.text.muted,
+    marginTop: -spacing.sm,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+  },
+  breakdownBlock: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  breakdownValue: {
+    fontSize: typography.scale.xl,
+    fontWeight: typography.weights.bold,
+  },
+  breakdownValueBold: {
+    fontSize: typography.scale['2xl'],
+  },
+  breakdownLabel: {
+    fontSize: typography.scale.xs,
+    color: colors.text.muted,
+    marginTop: 2,
+  },
+  breakdownOp: {
+    fontSize: typography.scale.xs,
+    color: colors.text.muted,
+    paddingHorizontal: 2,
   },
 
   // Dimensions

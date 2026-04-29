@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useEffect, useRef } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { documentsApi, type Document } from '../../services/api';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
@@ -13,6 +14,7 @@ import { spacing, radius, screenPadding } from '../../constants/spacing';
 
 export default function UploadScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploading, setUploading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -102,7 +104,7 @@ export default function UploadScreen() {
       <View style={styles.orb1} />
       <View style={styles.orb2} />
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing.md }]} showsVerticalScrollIndicator={false}>
 
         {/* Header */}
         <View style={styles.header}>
@@ -214,7 +216,7 @@ const styles = StyleSheet.create({
   },
 
   scroll:    { flex: 1 },
-  container: { paddingHorizontal: screenPadding, paddingTop: 60, paddingBottom: 48 },
+  container: { paddingHorizontal: screenPadding, paddingBottom: 48 },
 
   header:   { marginBottom: spacing['2xl'] },
   title:    { fontSize: typography.scale['2xl'], fontWeight: typography.weights.bold, color: colors.text.primary },

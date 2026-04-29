@@ -12,42 +12,65 @@ interface Props {
 export default function QuestionFeedbackCard({ result }: Props) {
   const [expanded, setExpanded] = useState(false);
   const { transcript, speechQuality, evaluation } = result;
+  // Fall back gracefully if the response pre-dates Sprint 5
+  const contentScore   = result.contentScore   ?? Math.round((evaluation.score ?? 5) * 10);
+  const speechScore    = result.speechScore    ?? 70;
+  const compositeScore = result.compositeScore ?? Math.round(contentScore * 0.70 + speechScore * 0.30);
 
   const scoreColor =
-    evaluation.score >= 8 ? colors.accent.success :
-    evaluation.score >= 5 ? colors.accent.warning :
+    compositeScore >= 80 ? colors.accent.success :
+    compositeScore >= 55 ? colors.accent.warning :
     colors.accent.danger;
 
   return (
     <View style={styles.card}>
-      {/* Header row */}
+      {/* ── Header ── */}
       <Pressable style={styles.header} onPress={() => setExpanded(v => !v)}>
-        <View style={styles.scoreCircle}>
-          <Text style={[styles.scoreNum, { color: scoreColor }]}>{evaluation.score}</Text>
-          <Text style={styles.scoreDen}>/10</Text>
+        {/* Composite score circle */}
+        <View style={[styles.scoreCircle, { borderColor: scoreColor }]}>
+          <Text style={[styles.scoreNum, { color: scoreColor }]}>{compositeScore}</Text>
+          <Text style={styles.scoreDen}>/100</Text>
         </View>
-        <View style={styles.headerText}>
+
+        <View style={styles.headerMeta}>
           <Text style={styles.headerTitle}>Answer evaluated</Text>
-          <Text style={styles.headerSub} numberOfLines={2}>{transcript}</Text>
+          {/* Content / Speech sub-scores */}
+          <View style={styles.subScoreRow}>
+            <SubScorePill label="Content" value={contentScore} />
+            <SubScorePill label="Speech"  value={speechScore}  />
+          </View>
         </View>
+
         <Text style={styles.chevron}>{expanded ? '▲' : '▼'}</Text>
       </Pressable>
 
       {expanded && (
         <View style={styles.body}>
+          {/* One-line AI verdict */}
+          {evaluation.feedback ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Verdict</Text>
+              <Text style={styles.verdictText}>{evaluation.feedback}</Text>
+            </View>
+          ) : null}
+
           {/* Transcript */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Your transcript</Text>
             <Text style={styles.transcriptText}>{transcript || '(no speech detected)'}</Text>
           </View>
 
-          {/* Speech quality */}
+          {/* Speech metrics */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Speech metrics</Text>
             <View style={styles.metricsRow}>
               <MetricPill label="Words" value={String(speechQuality.wordCount)} />
               {speechQuality.wpm !== null && (
-                <MetricPill label="WPM" value={String(speechQuality.wpm)} />
+                <MetricPill
+                  label="WPM"
+                  value={String(speechQuality.wpm)}
+                  warn={speechQuality.wpm < 80 || speechQuality.wpm > 200}
+                />
               )}
               <MetricPill
                 label="Fillers"
@@ -58,7 +81,7 @@ export default function QuestionFeedbackCard({ result }: Props) {
             </View>
             {speechQuality.fillerWords.length > 0 && (
               <Text style={styles.fillerNote}>
-                Filler words used: {speechQuality.fillerWords.join(', ')}
+                Filler words: {speechQuality.fillerWords.join(', ')}
               </Text>
             )}
           </View>
@@ -83,15 +106,35 @@ export default function QuestionFeedbackCard({ result }: Props) {
             </View>
           )}
 
-          {/* Suggested phrase */}
-          {evaluation.suggestedPhrase && (
+          {/* Ideal answer */}
+          {evaluation.improvedAnswer ? (
+            <View style={styles.idealBox}>
+              <Text style={styles.idealLabel}>Model answer</Text>
+              <Text style={styles.idealText}>{evaluation.improvedAnswer}</Text>
+            </View>
+          ) : evaluation.suggestedPhrase ? (
             <View style={styles.phraseBox}>
               <Text style={styles.phraseLabel}>Try phrasing it as:</Text>
               <Text style={styles.phraseText}>"{evaluation.suggestedPhrase}"</Text>
             </View>
-          )}
+          ) : null}
         </View>
       )}
+    </View>
+  );
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function SubScorePill({ label, value }: { label: string; value: number }) {
+  const color =
+    value >= 80 ? colors.accent.success :
+    value >= 55 ? colors.accent.warning :
+    colors.accent.danger;
+  return (
+    <View style={[styles.subPill, { borderColor: color }]}>
+      <Text style={[styles.subPillValue, { color }]}>{value}</Text>
+      <Text style={styles.subPillLabel}>{label}</Text>
     </View>
   );
 }
@@ -99,11 +142,13 @@ export default function QuestionFeedbackCard({ result }: Props) {
 function MetricPill({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
     <View style={[styles.pill, warn && styles.pillWarn]}>
-      <Text style={styles.pillValue}>{value}</Text>
+      <Text style={[styles.pillValue, warn && styles.pillValueWarn]}>{value}</Text>
       <Text style={styles.pillLabel}>{label}</Text>
     </View>
   );
 }
+
+// ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   card: {
@@ -123,9 +168,10 @@ const styles = StyleSheet.create({
   },
 
   scoreCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
     backgroundColor: colors.bg.raised,
     alignItems: 'center',
     justifyContent: 'center',
@@ -142,17 +188,31 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  headerText: { flex: 1 },
+  headerMeta: { flex: 1 },
   headerTitle: {
     fontSize: typography.scale.sm,
     fontWeight: typography.weights.semibold,
     color: colors.text.primary,
-    marginBottom: 2,
+    marginBottom: spacing.xs,
   },
-  headerSub: {
+
+  subScoreRow: { flexDirection: 'row', gap: spacing.sm },
+  subPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    borderWidth: 1,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  subPillValue: {
+    fontSize: typography.scale.xs,
+    fontWeight: typography.weights.bold,
+  },
+  subPillLabel: {
     fontSize: typography.scale.xs,
     color: colors.text.muted,
-    lineHeight: 16,
   },
 
   chevron: {
@@ -176,6 +236,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
+  verdictText: {
+    fontSize: typography.scale.sm,
+    color: colors.text.secondary,
+    lineHeight: 20,
+  },
+
   transcriptText: {
     fontSize: typography.scale.sm,
     color: colors.text.secondary,
@@ -188,7 +254,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     flexWrap: 'wrap',
   },
-
   pill: {
     backgroundColor: colors.bg.raised,
     borderRadius: radius.md,
@@ -205,11 +270,13 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text.primary,
   },
+  pillValueWarn: {
+    color: colors.accent.warning,
+  },
   pillLabel: {
     fontSize: typography.scale.xs,
     color: colors.text.muted,
   },
-
   fillerNote: {
     fontSize: typography.scale.xs,
     color: colors.accent.warning,
@@ -223,6 +290,27 @@ const styles = StyleSheet.create({
   bulletAmber: {
     fontSize: typography.scale.sm,
     color: colors.accent.warning,
+    lineHeight: 20,
+  },
+
+  idealBox: {
+    backgroundColor: 'rgba(16,185,129,0.07)',
+    borderRadius: radius.md,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent.success,
+    padding: spacing.lg,
+    gap: spacing.xs,
+  },
+  idealLabel: {
+    fontSize: typography.scale.xs,
+    color: colors.accent.success,
+    fontWeight: typography.weights.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  idealText: {
+    fontSize: typography.scale.sm,
+    color: colors.text.primary,
     lineHeight: 20,
   },
 

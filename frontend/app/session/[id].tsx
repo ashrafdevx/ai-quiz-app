@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { sessionsApi, type Session, type Question, type VoiceAnswerResult } from '../../services/api';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
@@ -84,6 +85,7 @@ function HintCard({ hints }: { hints: string[] }) {
 
 export default function SessionScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [session,    setSession]    = useState<Session | null>(null);
@@ -163,7 +165,7 @@ export default function SessionScreen() {
       <View style={styles.orb2} />
 
       {/* Top bar */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.questionCount}>Q {qIndex + 1} of {total}</Text>
         <ProgressBar current={qIndex + 1} total={total} />
         <Pressable onPress={() => router.back()} style={styles.exitBtn}>
@@ -206,7 +208,7 @@ export default function SessionScreen() {
       </ScrollView>
 
       {/* Navigation */}
-      <View style={styles.navBar}>
+      <View style={[styles.navBar, { paddingBottom: insets.bottom + spacing.lg }]}>
         <Pressable
           style={[styles.navBtn, isFirst && styles.navBtnDisabled]}
           onPress={() => setQIndex(i => i - 1)}
@@ -261,7 +263,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: screenPadding,
-    paddingTop: 56,
     paddingBottom: spacing.md,
     gap: spacing.md,
   },
@@ -318,8 +319,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: screenPadding,
-    paddingVertical: spacing.lg,
-    paddingBottom: 28,
+    paddingTop: spacing.lg,
     backgroundColor: 'rgba(10,11,15,0.95)',
     borderTopWidth: 1,
     borderTopColor: colors.border.subtle,

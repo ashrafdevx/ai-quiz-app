@@ -236,9 +236,11 @@ export interface SpeechQuality {
 
 export interface SingleEvaluation {
   score: number;
+  feedback?: string;
   strengths: string[];
   improvements: string[];
   suggestedPhrase: string;
+  improvedAnswer?: string;
 }
 
 export interface VoiceAnswerResult {
@@ -246,6 +248,9 @@ export interface VoiceAnswerResult {
   transcript: string;
   speechQuality: SpeechQuality;
   evaluation: SingleEvaluation;
+  contentScore: number;   // 0-100, from AI evaluation
+  speechScore: number;    // 0-100, from speech metrics
+  compositeScore: number; // 0-100, content×0.7 + speech×0.3
 }
 
 export interface UploadResponse {

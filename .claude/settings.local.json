@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx expo *)",
+      "Bash(npm install *)",
+      "Bash(nvm list *)"
+    ]
+  }
+}

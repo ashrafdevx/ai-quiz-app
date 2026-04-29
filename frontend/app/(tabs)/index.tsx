@@ -1,6 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
@@ -16,6 +17,7 @@ function greeting(): string {
 export default function HomeScreen() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const stats = user?.stats;
 
   return (
@@ -23,7 +25,7 @@ export default function HomeScreen() {
       <View style={styles.orb1} />
       <View style={styles.orb2} />
 
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.greeting}>{greeting()}, {user?.name?.split(' ')[0]} 👋</Text>
@@ -83,7 +85,7 @@ const styles = StyleSheet.create({
     width: 250, height: 250, borderRadius: 125,
     backgroundColor: 'rgba(168, 85, 247, 0.08)',
   },
-  container:   { flex: 1, paddingHorizontal: screenPadding, paddingTop: 60 },
+  container:   { flex: 1, paddingHorizontal: screenPadding },
   header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing['2xl'] },
   greeting:    { fontSize: typography.scale.lg, fontWeight: typography.weights.bold, color: colors.text.primary },
   logoutText:  { fontSize: typography.scale.sm, color: colors.text.muted },

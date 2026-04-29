@@ -36,6 +36,45 @@ function analyzeSpeech(transcript, durationSeconds) {
   return { wordCount, wpm, fillerCount, fillerWords: foundFillers, uniqueWordRatio };
 }
 
+/**
+ * Compute a 0-100 speech score from raw speech metrics.
+ * Weights: clarity (vocab diversity) 40%, filler penalty 35%, WPM pace 25%.
+ */
+function computeSpeechScore(wpm, fillerCount, uniqueWordRatio) {
+  // WPM score — ideal range is 120-160 wpm
+  let wpmScore;
+  if (!wpm || wpm === 0) {
+    wpmScore = 70; // neutral when duration is unknown
+  } else if (wpm < 80) {
+    wpmScore = Math.round((wpm / 80) * 60);
+  } else if (wpm < 120) {
+    wpmScore = Math.round(60 + ((wpm - 80) / 40) * 40);
+  } else if (wpm <= 160) {
+    wpmScore = 100;
+  } else if (wpm <= 200) {
+    wpmScore = Math.round(100 - ((wpm - 160) / 40) * 20);
+  } else {
+    wpmScore = Math.max(40, Math.round(80 - ((wpm - 200) / 50) * 40));
+  }
+
+  // Filler penalty
+  const fillerScore = fillerCount === 0 ? 100
+    : fillerCount <= 2 ? 80
+    : fillerCount <= 5 ? 60
+    : fillerCount <= 10 ? 40
+    : 20;
+
+  // Clarity proxy from vocabulary diversity (uniqueWordRatio is already 0-100)
+  const clarityScore = Math.min(100, Math.round(uniqueWordRatio * 1.2));
+
+  return Math.round(clarityScore * 0.40 + fillerScore * 0.35 + wpmScore * 0.25);
+}
+
+/** Sprint 5 composite: content drives 70%, speech delivery drives 30% */
+function computeCompositeScore(contentScore, speechScore) {
+  return Math.round(contentScore * 0.70 + speechScore * 0.30);
+}
+
 // ── Route ────────────────────────────────────────────────────────────────────
 
 /**
@@ -87,18 +126,27 @@ router.post('/:id/voice-answer', audioUpload.single('audio'), async (req, res, n
     // ── Transcribe ────────────────────────────────────────────────────────
     const transcript = await transcribeAudio(audioPath);
 
-    // ── Speech quality ────────────────────────────────────────────────────
+    // ── Speech quality + speech score ─────────────────────────────────────
     const speechQuality = analyzeSpeech(transcript, duration);
+    const speechScore = computeSpeechScore(
+      speechQuality.wpm,
+      speechQuality.fillerCount,
+      speechQuality.uniqueWordRatio,
+    );
 
-    // ── Evaluate answer ───────────────────────────────────────────────────
+    // ── Evaluate answer (content) ─────────────────────────────────────────
     const prompt = singleAnswerEvalPrompt(question.text, transcript, question.hint || []);
     const raw = await generateText(prompt);
     const evaluation = parseJsonResponse(raw);
 
+    // ── Composite score ───────────────────────────────────────────────────
+    const contentScore = Math.round((evaluation.score ?? 5) * 10); // 1-10 → 0-100
+    const compositeScore = computeCompositeScore(contentScore, speechScore);
+
     // ── Persist transcript ────────────────────────────────────────────────
     await store.saveAnswer(req.params.id, questionId, transcript);
 
-    res.json({ transcript, speechQuality, evaluation, questionId });
+    res.json({ transcript, speechQuality, evaluation, questionId, contentScore, speechScore, compositeScore });
   } catch (err) {
     next(err);
   } finally {

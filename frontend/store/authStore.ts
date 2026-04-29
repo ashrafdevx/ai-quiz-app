@@ -12,6 +12,7 @@ interface AuthState {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -49,6 +50,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     await SecureStore.deleteItemAsync('auth_token');
     set({ token: null, user: null, isAuthenticated: false });
+  },
+
+  refreshUser: async () => {
+    try {
+      const { data } = await authApi.me();
+      set({ user: data.user });
+    } catch {
+      // non-critical — silently ignore network errors
+    }
   },
 
   restoreSession: async () => {

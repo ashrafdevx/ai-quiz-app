@@ -131,9 +131,11 @@ Evaluate for relevance, completeness, and communication quality.
 Return ONLY valid JSON — no markdown, no explanation:
 {
   "score": <1-10>,
+  "feedback": "<1-2 sentence overall verdict>",
   "strengths": ["...", "..."],
   "improvements": ["...", "..."],
-  "suggestedPhrase": "..."
+  "suggestedPhrase": "...",
+  "improvedAnswer": "<a concise model answer of 2-4 sentences covering all key points>"
 }`;
 
 module.exports = { extractionPrompt, questionGenerationPrompt, feedbackPrompt, singleAnswerEvalPrompt };
