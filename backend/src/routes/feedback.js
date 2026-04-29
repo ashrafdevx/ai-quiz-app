@@ -58,19 +58,38 @@ router.post('/:sessionId', async (req, res, next) => {
         const user = await User.findById(req.userId);
         if (user) {
           const prev = user.stats;
-          const newTotalSessions = prev.totalSessions + 1;
           const answeredCount = session.answers.filter((a) => a.transcript).length;
+          const newTotalSessions = prev.totalSessions + 1;
           const newAvgScore = Math.round(
             ((prev.avgScore * prev.totalSessions) + feedback.overall) / newTotalSessions,
           );
 
+          // ── Streak computation ─────────────────────────────────────────────
+          const todayStart     = new Date(); todayStart.setHours(0, 0, 0, 0);
+          const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(todayStart.getDate() - 1);
+          const lastDate       = prev.lastSessionDate ? new Date(prev.lastSessionDate) : null;
+          if (lastDate) lastDate.setHours(0, 0, 0, 0);
+
+          let newStreak;
+          if (!lastDate) {
+            newStreak = 1;                                          // first ever session
+          } else if (lastDate.getTime() === todayStart.getTime()) {
+            newStreak = prev.streak;                                // already completed one today
+          } else if (lastDate.getTime() === yesterdayStart.getTime()) {
+            newStreak = prev.streak + 1;                            // consecutive day
+          } else {
+            newStreak = 1;                                          // streak broken
+          }
+
           await User.findByIdAndUpdate(req.userId, {
             $set: {
-              'stats.totalSessions': newTotalSessions,
-              'stats.avgScore':      newAvgScore,
-              'stats.bestScore':     Math.max(prev.bestScore, feedback.overall),
-              'stats.totalQuestions': prev.totalQuestions + session.questions.length,
-              'stats.totalAnswered':  prev.totalAnswered  + answeredCount,
+              'stats.totalSessions':   newTotalSessions,
+              'stats.avgScore':        newAvgScore,
+              'stats.bestScore':       Math.max(prev.bestScore, feedback.overall),
+              'stats.totalQuestions':  prev.totalQuestions + session.questions.length,
+              'stats.totalAnswered':   prev.totalAnswered  + answeredCount,
+              'stats.streak':          newStreak,
+              'stats.lastSessionDate': todayStart,
             },
           });
         }

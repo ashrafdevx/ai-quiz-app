@@ -97,6 +97,11 @@ export const feedbackApi = {
   generate: (sessionId: string) => api.post<FeedbackResult>(`/api/feedback/${sessionId}`, {}),
 };
 
+// Analytics endpoint
+export const analyticsApi = {
+  performance: () => api.get<PerformanceData>('/api/analytics/performance'),
+};
+
 // Voice answer endpoint
 export const voiceAnswerApi = {
   submit: async (
@@ -251,6 +256,26 @@ export interface VoiceAnswerResult {
   contentScore: number;   // 0-100, from AI evaluation
   speechScore: number;    // 0-100, from speech metrics
   compositeScore: number; // 0-100, content×0.7 + speech×0.3
+}
+
+export interface ScoreEntry {
+  sessionId:     string;
+  date:          string;
+  score:         number;
+  documentName:  string;
+  interviewType: string;
+  difficulty:    string;
+}
+
+export interface PerformanceData {
+  scoreHistory:  ScoreEntry[];
+  avgScore:      number;
+  bestScore:     number;
+  totalSessions: number;
+  totalAnswered: number;
+  streak:        number;
+  weakTopics:    string[];
+  recentTrend:   'improving' | 'declining' | 'stable';
 }
 
 export interface UploadResponse {

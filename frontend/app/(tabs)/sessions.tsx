@@ -136,7 +136,11 @@ export default function SessionsScreen() {
               <SessionCard
                 key={s.id}
                 session={s}
-                onPress={() => router.push(`/session/${s.id}`)}
+                onPress={() =>
+                  s.status === 'completed'
+                    ? router.push({ pathname: '/session/result', params: { id: s.id } })
+                    : router.push(`/session/${s.id}`)
+                }
               />
             ))}
           </View>

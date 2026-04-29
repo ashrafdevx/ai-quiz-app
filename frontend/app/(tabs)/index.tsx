@@ -1,6 +1,7 @@
+import { useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../constants/colors';
@@ -15,10 +16,12 @@ function greeting(): string {
 }
 
 export default function HomeScreen() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, refreshUser } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const stats = user?.stats;
+
+  useFocusEffect(useCallback(() => { refreshUser(); }, []));
 
   return (
     <LinearGradient colors={['#0A0B0F', '#0D1018', '#0A0B0F']} style={styles.bg}>

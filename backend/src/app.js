@@ -11,6 +11,7 @@ const questionsRouter   = require('./routes/questions');
 const sessionsRouter    = require('./routes/sessions');
 const feedbackRouter    = require('./routes/feedback');
 const voiceAnswerRouter = require('./routes/voiceAnswer');
+const analyticsRouter   = require('./routes/analytics');
 const authMiddleware  = require('./middleware/authMiddleware');
 const errorHandler    = require('./middleware/errorHandler');
 
@@ -41,6 +42,7 @@ app.use('/api/questions',     authMiddleware, questionsRouter);
 app.use('/api/sessions',      authMiddleware, sessionsRouter);
 app.use('/api/sessions',      authMiddleware, voiceAnswerRouter);
 app.use('/api/feedback',      authMiddleware, feedbackRouter);
+app.use('/api/analytics',    authMiddleware, analyticsRouter);
 
 // 404
 app.use((req, res) => {
