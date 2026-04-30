@@ -138,4 +138,86 @@ Return ONLY valid JSON — no markdown, no explanation:
   "improvedAnswer": "<a concise model answer of 2-4 sentences covering all key points>"
 }`;
 
-module.exports = { extractionPrompt, questionGenerationPrompt, feedbackPrompt, singleAnswerEvalPrompt };
+// ── Daily Quest prompts ───────────────────────────────────────────────────────
+
+const QUEST_TOPICS = [
+  'data structures', 'algorithms', 'system design', 'JavaScript / TypeScript',
+  'REST APIs & HTTP', 'SQL & NoSQL databases', 'Git workflow', 'software architecture',
+  'behavioral interview skills', 'problem-solving approach', 'code review best practices',
+  'testing strategies', 'performance optimization', 'web security fundamentals',
+  'object-oriented design', 'functional programming concepts', 'cloud & DevOps basics',
+  'React / frontend patterns', 'Node.js / backend patterns', 'concurrency & async programming',
+];
+
+/**
+ * Generates a daily set of short-answer quiz questions for interview preparation.
+ * Topics are randomly sampled so each day's set is different.
+ * @param {number} count
+ */
+const dailyQuestGenerationPrompt = (count = 5) => {
+  const shuffled = [...QUEST_TOPICS].sort(() => Math.random() - 0.5);
+  const topics   = shuffled.slice(0, count).join(', ');
+
+  return `You are an interview preparation coach creating a daily quiz for software engineers.
+
+Generate exactly ${count} short-answer questions, one per topic from this list: ${topics}
+
+For each question:
+- Question: clear and answerable in 2-5 sentences
+- Correct answer: 2-4 sentences covering all essential points
+- Tips: exactly 3 concise bullet points to remember
+- Topic: the exact topic from the list
+- Difficulty: "easy", "medium", or "hard"
+
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "questions": [
+    {
+      "id": 1,
+      "question": "...",
+      "correctAnswer": "...",
+      "tips": ["...", "...", "..."],
+      "topic": "...",
+      "difficulty": "easy|medium|hard"
+    }
+  ]
+}`;
+};
+
+/**
+ * Evaluates a user's written answer against the correct answer and tips.
+ * Scores generously — partial credit for partial understanding.
+ * @param {string} question
+ * @param {string} userAnswer
+ * @param {string} correctAnswer
+ * @param {string[]} tips
+ */
+const dailyQuestEvalPrompt = (question, userAnswer, correctAnswer, tips) =>
+  `You are evaluating a software engineer's answer to an interview preparation question.
+
+Question: ${question}
+Correct Answer: ${correctAnswer}
+Key Points to Cover: ${(tips ?? []).join(' | ')}
+User's Answer: ${userAnswer}
+
+Scoring guide:
+- 80-100: Covers all key points, clear explanation
+- 60-79: Covers most key points, minor gaps
+- 40-59: Covers some key points, significant gaps
+- 0-39: Misses most key points or fundamentally wrong
+
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "isCorrect": <true if score >= 60, otherwise false>,
+  "score": <0-100>,
+  "feedback": "<1-2 sentences: what they got right and what was missing>"
+}`;
+
+module.exports = {
+  extractionPrompt,
+  questionGenerationPrompt,
+  feedbackPrompt,
+  singleAnswerEvalPrompt,
+  dailyQuestGenerationPrompt,
+  dailyQuestEvalPrompt,
+};

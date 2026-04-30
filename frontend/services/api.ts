@@ -286,6 +286,72 @@ export interface UploadResponse {
   status: string;
 }
 
+// Daily Quest API
+export const dailyQuestApi = {
+  today:   ()                                                        => api.get<DailyQuestPlan>('/api/daily-quest/today'),
+  submit:  (planId: string, questionId: number, userAnswer: string) =>
+             api.post<DailyQuestSubmitResult>('/api/daily-quest/submit', { planId, questionId, userAnswer }),
+  history: (limit = 100, skip = 0)                                  =>
+             api.get<DailyQuestHistory>(`/api/daily-quest/history?limit=${limit}&skip=${skip}`),
+};
+
+// Daily Quest types
+export interface DailyQuestQuestion {
+  id:            number;
+  question:      string;
+  correctAnswer: string;
+  tips:          string[];
+  topic:         string;
+  difficulty:    'easy' | 'medium' | 'hard';
+  answered:      boolean;
+  entryId:       string | null;
+  entry:         DailyQuestEntry | null; // embedded by /today when already answered
+}
+
+export interface DailyQuestPlan {
+  _id:       string;
+  date:      string;
+  questions: DailyQuestQuestion[];
+}
+
+export interface DailyQuestEntry {
+  _id:           string;
+  date:          string;
+  questionId:    number;
+  question:      string;
+  userAnswer:    string;
+  correctAnswer: string;
+  tips:          string[];
+  topic:         string;
+  difficulty:    'easy' | 'medium' | 'hard';
+  isCorrect:     boolean;
+  score:         number;
+  feedback:      string;
+  completedAt:   string;
+}
+
+export interface DailyQuestSubmitResult {
+  entry:         DailyQuestEntry;
+  isCorrect:     boolean;
+  score:         number;
+  correctAnswer: string;
+  tips:          string[];
+  feedback:      string;
+}
+
+export interface DailyQuestDay {
+  date:     string;          // YYYY-MM-DD UTC
+  entries:  DailyQuestEntry[];
+  correct:  number;
+  total:    number;
+  avgScore: number;
+}
+
+export interface DailyQuestHistory {
+  days:  DailyQuestDay[];
+  total: number;
+}
+
 /** Extract user-facing message from any API or network error. */
 export function extractMessage(
   err: any,

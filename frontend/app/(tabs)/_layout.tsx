@@ -48,6 +48,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="upload"    options={{ title: 'Upload',    tabBarIcon: tabIcon('cloud-upload', 'cloud-upload-outline') }} />
       <Tabs.Screen name="sessions"  options={{ title: 'Sessions',  tabBarIcon: tabIcon('library', 'library-outline') }} />
       <Tabs.Screen name="analytics" options={{ title: 'Analytics', tabBarIcon: tabIcon('bar-chart', 'bar-chart-outline') }} />
+      <Tabs.Screen name="daily"     options={{ title: 'Daily',     tabBarIcon: tabIcon('calendar', 'calendar-outline') }} />
     </Tabs>
   );
 }
