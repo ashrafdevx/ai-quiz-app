@@ -2,8 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
-const { generateFromFile } = require('./geminiService');
-const { extractionPrompt } = require('../prompts/templates');
+const { generateText } = require('./geminiService');
 
 /**
  * Extract plain text from a file based on its MIME type.
@@ -32,24 +31,39 @@ async function extractText(filePath, mimeType, originalName) {
     return result.value;
   }
 
-  // PDF — send raw bytes to Gemini (handles complex layouts, multi-column, etc.)
+  // PDF — pdf-parse first, Groq cleanup as fallback for messy/short extracts
   if (mimeType === 'application/pdf' || ext === '.pdf') {
     const buffer = fs.readFileSync(filePath);
 
-    // First try pdf-parse (fast, no API quota)
+    let rawText = '';
     try {
       const data = await pdfParse(buffer);
-      const text = data.text && data.text.trim();
-      if (text && text.length >= 100) {
-        return text;
-      }
+      rawText = (data.text || '').trim();
     } catch {
-      // Scanned/image PDF — fall through to Gemini
+      // pdf-parse failed (corrupted or fully image-based PDF)
     }
 
-    // Fallback: Gemini OCR for scanned/image-based PDFs
-    const raw = await generateFromFile(extractionPrompt(), buffer, 'application/pdf');
-    return raw;
+    // Clean text — return as-is
+    if (rawText.length >= 100) return rawText;
+
+    // Short/messy extract — ask Groq to clean it up
+    if (rawText.length >= 20) {
+      try {
+        const cleaned = await generateText(
+          `Clean up this raw PDF text extract. Remove headers, footers, page numbers, and formatting artifacts. Keep all meaningful body content. Return only the clean text, no explanation.\n\n${rawText.slice(0, 8000)}`
+        );
+        const cleanedText = (cleaned || '').trim();
+        return cleanedText.length >= 20 ? cleanedText : rawText;
+      } catch {
+        return rawText; // Groq failed — use raw pdf-parse output
+      }
+    }
+
+    // Nothing extractable — almost certainly a scanned/image PDF
+    throw Object.assign(
+      new Error('This PDF appears to be image-based or scanned. Please upload a text-based PDF, or export your document as DOCX or TXT first.'),
+      { status: 422 }
+    );
   }
 
   throw new Error(

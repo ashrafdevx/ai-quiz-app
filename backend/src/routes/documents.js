@@ -21,10 +21,11 @@ router.post('/upload', upload.single('document'), async (req, res, next) => {
   let doc;
   try {
     const { path: filePath, mimetype, originalname } = req.file;
+    const fileName = (() => { try { return decodeURIComponent(originalname); } catch { return originalname; } })();
 
     doc = await Document.create({
       userId: req.userId,
-      fileName: originalname,
+      fileName,
       status: 'processing',
     });
 

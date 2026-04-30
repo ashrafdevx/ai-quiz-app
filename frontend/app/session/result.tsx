@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { feedbackApi, sessionsApi, type FeedbackResult, type Session } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { colors, getScoreColor } from '../../constants/colors';
@@ -117,7 +117,6 @@ function QuestionRow({
 
 export default function ResultScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { refreshUser } = useAuthStore();
 
@@ -203,9 +202,10 @@ export default function ResultScreen() {
       <View style={styles.orb1} />
       <View style={styles.orb2} />
 
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.lg }]}
+        contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Overall score hero ── */}
@@ -278,6 +278,7 @@ export default function ResultScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      </SafeAreaView>
     </LinearGradient>
   );
 }
@@ -286,6 +287,7 @@ export default function ResultScreen() {
 
 const styles = StyleSheet.create({
   bg:       { flex: 1 },
+  safeArea: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg, padding: screenPadding },
   orb1:     { position: 'absolute', top: -80, right: -60, width: 280, height: 280, borderRadius: 140, backgroundColor: 'rgba(108,99,255,0.1)' },
   orb2:     { position: 'absolute', bottom: 60, left: -80, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(168,85,247,0.07)' },

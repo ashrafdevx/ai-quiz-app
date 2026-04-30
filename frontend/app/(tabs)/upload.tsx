@@ -3,51 +3,60 @@ import {
   ActivityIndicator, Alert, Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { documentsApi, type Document } from '../../services/api';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { documentsApi, type Document, extractMessage } from '../../services/api';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
 import { spacing, radius, screenPadding } from '../../constants/spacing';
 
 export default function UploadScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [fetching, setFetching] = useState(true);
 
-  // Pulse animation for upload zone when active
+  const [freshDoc,     setFreshDoc]     = useState<Document | null>(null);
+  const [prevDocs,     setPrevDocs]     = useState<Document[]>([]);
+  const [selectedDoc,  setSelectedDoc]  = useState<Document | null>(null);
+  const [uploading,    setUploading]    = useState(false);
+  const [fetching,     setFetching]     = useState(true);
+  const [prevExpanded, setPrevExpanded] = useState(false);
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
 
-  useEffect(() => { loadDocuments(); }, []);
-
-  useEffect(() => {
-    if (uploading) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.02, duration: 700, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1.0, duration: 700, useNativeDriver: true }),
-        ])
-      ).start();
-    } else {
-      pulseAnim.stopAnimation();
-      pulseAnim.setValue(1);
-    }
-  }, [uploading]);
-
-  const loadDocuments = async () => {
+  const loadPrevDocs = useCallback(async (excludeId?: string) => {
     try {
       const { data } = await documentsApi.list();
-      setDocuments(data.documents);
+      const ready = data.documents.filter(
+        d => d.status === 'ready' && d._id !== excludeId
+      );
+      setPrevDocs(ready);
     } catch {
-      // silent — empty list is fine
+      // silent
     } finally {
       setFetching(false);
     }
-  };
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    loadPrevDocs(freshDoc?._id);
+  }, [freshDoc?._id]));
+
+  useEffect(() => {
+    if (uploading) {
+      pulseLoop.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.02, duration: 700, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1.0,  duration: 700, useNativeDriver: true }),
+        ])
+      );
+      pulseLoop.current.start();
+    } else {
+      pulseLoop.current?.stop();
+      pulseAnim.setValue(1);
+    }
+  }, [uploading]);
 
   const handlePick = async () => {
     try {
@@ -63,211 +72,225 @@ export default function UploadScreen() {
       if (result.canceled || !result.assets?.length) return;
 
       const file = result.assets[0];
+      const cleanName = (() => {
+        try { return decodeURIComponent(file.name); }
+        catch { return file.name; }
+      })();
+
       setUploading(true);
 
       const formData = new FormData();
       formData.append('document', {
-        uri: file.uri,
-        name: file.name,
+        uri:  file.uri,
+        name: cleanName,
         type: file.mimeType ?? 'application/octet-stream',
       } as any);
 
-      await documentsApi.upload(formData);
-      await loadDocuments();
+      const { data: uploaded } = await documentsApi.upload(formData);
+
+      const fresh: Document = {
+        _id:       uploaded.documentId,
+        fileName:  uploaded.fileName,
+        wordCount: uploaded.wordCount,
+        charCount: uploaded.charCount,
+        status:    'ready',
+        createdAt: new Date().toISOString(),
+      };
+
+      setFreshDoc(fresh);
+      setSelectedDoc(fresh);
+      await loadPrevDocs(fresh._id);
     } catch (err: any) {
-      Alert.alert(
-        'Upload failed',
-        err?.response?.data?.message ?? err?.response?.data?.error ?? 'Something went wrong. Please try again.'
-      );
+      Alert.alert('Upload failed', extractMessage(err, 'Could not upload the file. Please try again.'));
     } finally {
       setUploading(false);
     }
   };
 
-  const statusIcon = (status: Document['status']) => {
-    if (status === 'ready') return '✓';
-    if (status === 'failed') return '✗';
-    return null;
+  const handleGenerate = () => {
+    const doc = selectedDoc ?? freshDoc;
+    if (!doc) return;
+    router.push({ pathname: '/session/new', params: { docId: doc._id } });
   };
 
-  const statusColor = (status: Document['status']) => {
-    if (status === 'ready') return colors.accent.success;
-    if (status === 'failed') return colors.accent.danger;
-    return colors.text.muted;
-  };
-
-  const readyDocs = documents.filter(d => d.status === 'ready');
-  const canGenerate = readyDocs.length > 0;
+  const canGenerate = !!(selectedDoc ?? freshDoc);
 
   return (
     <LinearGradient colors={['#0A0B0F', '#0D1018', '#0A0B0F']} style={styles.bg}>
       <View style={styles.orb1} />
       <View style={styles.orb2} />
 
-      <ScrollView style={styles.scroll} contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing.md }]} showsVerticalScrollIndicator={false}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Upload Document</Text>
+            <Text style={styles.subtitle}>Add study material to generate quiz questions</Text>
+          </View>
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Upload Documents</Text>
-          <Text style={styles.subtitle}>Add study material to generate quiz questions</Text>
-        </View>
+          {/* Upload zone */}
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <Pressable
+              style={[styles.dropzone, uploading && styles.dropzoneActive]}
+              onPress={handlePick}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <>
+                  <ActivityIndicator size="large" color={colors.accent.primary} />
+                  <Text style={styles.dropzoneText}>Processing document…</Text>
+                  <Text style={styles.dropzoneHint}>This may take up to 30 seconds</Text>
+                </>
+              ) : freshDoc ? (
+                <>
+                  <Text style={styles.uploadIcon}>✓</Text>
+                  <Text style={[styles.dropzoneText, { color: colors.accent.success }]}>Upload complete</Text>
+                  <Text style={styles.dropzoneHint}>Tap to replace with a different file</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.uploadIcon}>☁</Text>
+                  <Text style={styles.dropzoneText}>Tap to browse files</Text>
+                  <Text style={styles.dropzoneHint}>PDF · DOCX · TXT · max 10 MB</Text>
+                </>
+              )}
+            </Pressable>
+          </Animated.View>
 
-        {/* Upload zone */}
-        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-          <Pressable
-            style={[styles.dropzone, uploading && styles.dropzoneActive]}
-            onPress={handlePick}
-            disabled={uploading}
-          >
-            {uploading ? (
-              <>
-                <ActivityIndicator size="large" color={colors.accent.primary} />
-                <Text style={styles.dropzoneText}>Processing your document...</Text>
-                <Text style={styles.dropzoneHint}>This may take up to 30 seconds</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.uploadIcon}>☁</Text>
-                <Text style={styles.dropzoneText}>Tap to browse files</Text>
-                <Text style={styles.dropzoneHint}>PDF · DOCX · TXT · max 10 MB</Text>
-              </>
-            )}
-          </Pressable>
-        </Animated.View>
-
-        {/* Documents list */}
-        {fetching ? (
-          <ActivityIndicator color={colors.accent.primary} style={styles.loader} />
-        ) : documents.length > 0 ? (
-          <View style={styles.listSection}>
-            <Text style={styles.listTitle}>Uploaded ({documents.length})</Text>
-            {documents.map(doc => (
-              <View key={doc._id} style={styles.docCard}>
+          {/* Freshly uploaded doc */}
+          {freshDoc && (
+            <View style={styles.freshSection}>
+              <Text style={styles.sectionLabel}>Ready to quiz</Text>
+              <Pressable
+                style={[styles.docCard, styles.docCardSelected]}
+                onPress={() => setSelectedDoc(freshDoc)}
+              >
                 <Text style={styles.docEmoji}>📄</Text>
                 <View style={styles.docInfo}>
-                  <Text style={styles.docName} numberOfLines={1}>{doc.fileName}</Text>
-                  <Text style={styles.docMeta}>
-                    {doc.status === 'ready'
-                      ? `${doc.wordCount.toLocaleString()} words`
-                      : doc.status === 'failed'
-                        ? 'Processing failed'
-                        : 'Processing...'}
-                  </Text>
+                  <Text style={styles.docName} numberOfLines={1}>{freshDoc.fileName}</Text>
+                  <Text style={styles.docMeta}>{freshDoc.wordCount.toLocaleString()} words</Text>
                 </View>
-                {doc.status === 'processing' ? (
-                  <ActivityIndicator size="small" color={colors.text.muted} />
-                ) : (
-                  <Text style={[styles.statusBadge, { color: statusColor(doc.status) }]}>
-                    {statusIcon(doc.status)}
-                  </Text>
-                )}
-              </View>
-            ))}
-          </View>
-        ) : null}
+                <Text style={[styles.statusIcon, { color: colors.accent.success }]}>✓</Text>
+              </Pressable>
+            </View>
+          )}
 
-        {/* CTA — Generate Questions */}
-        <View style={styles.ctaWrapper}>
-          {canGenerate ? (
+          {/* Previous documents */}
+          {!fetching && prevDocs.length > 0 && (
+            <View style={styles.prevSection}>
+              <Pressable style={styles.prevHeader} onPress={() => setPrevExpanded(v => !v)}>
+                <Text style={styles.sectionLabel}>Previous documents ({prevDocs.length})</Text>
+                <Text style={styles.chevron}>{prevExpanded ? '▲' : '▼'}</Text>
+              </Pressable>
+
+              {prevExpanded && prevDocs.map(doc => (
+                <Pressable
+                  key={doc._id}
+                  style={[styles.docCard, selectedDoc?._id === doc._id && styles.docCardSelected]}
+                  onPress={() => setSelectedDoc(prev => prev?._id === doc._id ? (freshDoc ?? null) : doc)}
+                >
+                  <Text style={styles.docEmoji}>📄</Text>
+                  <View style={styles.docInfo}>
+                    <Text style={styles.docName} numberOfLines={1}>{doc.fileName}</Text>
+                    <Text style={styles.docMeta}>{doc.wordCount.toLocaleString()} words</Text>
+                  </View>
+                  {selectedDoc?._id === doc._id && (
+                    <Text style={[styles.statusIcon, { color: colors.accent.primary }]}>✓</Text>
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {/* CTA */}
+          <View style={styles.ctaWrapper}>
             <Pressable
-              onPress={() => {
-                const first = readyDocs[0];
-                router.push(`/session/new?docId=${first._id}&docName=${encodeURIComponent(first.fileName)}`);
-              }}
-              style={({ pressed }) => [styles.btnOuter, pressed && { opacity: 0.85 }]}
+              onPress={handleGenerate}
+              disabled={!canGenerate}
+              style={({ pressed }) => [pressed && canGenerate && { opacity: 0.85 }]}
             >
               <LinearGradient
-                colors={['#6C63FF', '#A855F7', '#EC4899']}
+                colors={canGenerate ? ['#6C63FF', '#A855F7', '#EC4899'] : ['#1A1E29', '#1A1E29', '#1A1E29']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.btn}
               >
-                <Text style={styles.btnText}>Generate Questions →</Text>
+                <Text style={[styles.btnText, !canGenerate && styles.btnTextMuted]}>
+                  {canGenerate
+                    ? `Generate from "${(selectedDoc ?? freshDoc)!.fileName.length > 24
+                        ? (selectedDoc ?? freshDoc)!.fileName.slice(0, 24) + '…'
+                        : (selectedDoc ?? freshDoc)!.fileName}" →`
+                    : 'Upload a document to continue'}
+                </Text>
               </LinearGradient>
             </Pressable>
-          ) : (
-            <View style={[styles.btnOuter, styles.btnDisabled]}>
-              <LinearGradient
-                colors={['#1A1E29', '#1A1E29', '#1A1E29']}
-                style={styles.btn}
-              >
-                <Text style={styles.btnTextMuted}>Upload a document to continue</Text>
-              </LinearGradient>
-            </View>
-          )}
-        </View>
-
-      </ScrollView>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  bg: { flex: 1 },
-  orb1: {
-    position: 'absolute', top: -100, right: -80,
-    width: 300, height: 300, borderRadius: 150,
-    backgroundColor: 'rgba(108, 99, 255, 0.12)',
-  },
-  orb2: {
-    position: 'absolute', bottom: 50, left: -100,
-    width: 250, height: 250, borderRadius: 125,
-    backgroundColor: 'rgba(168, 85, 247, 0.08)',
-  },
+  bg:       { flex: 1 },
+  safeArea: { flex: 1 },
+  orb1:     { position: 'absolute', top: -100, right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(108,99,255,0.12)' },
+  orb2:     { position: 'absolute', bottom: 50, left: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(168,85,247,0.08)' },
 
   scroll:    { flex: 1 },
-  container: { paddingHorizontal: screenPadding, paddingBottom: 48 },
+  container: { paddingHorizontal: screenPadding, paddingTop: spacing.md, paddingBottom: spacing['2xl'] },
 
   header:   { marginBottom: spacing['2xl'] },
   title:    { fontSize: typography.scale['2xl'], fontWeight: typography.weights.bold, color: colors.text.primary },
   subtitle: { fontSize: typography.scale.sm, color: colors.text.muted, marginTop: spacing.xs },
 
   dropzone: {
-    borderWidth: 2,
-    borderStyle: 'dashed',
+    borderWidth: 2, borderStyle: 'dashed',
     borderColor: colors.border.strong,
     borderRadius: radius.xl,
     paddingVertical: 48,
     alignItems: 'center',
     marginBottom: spacing['2xl'],
     backgroundColor: 'rgba(255,255,255,0.02)',
+    gap: spacing.xs,
   },
   dropzoneActive: { borderColor: colors.accent.primary },
-  uploadIcon:     { fontSize: 44, marginBottom: spacing.md },
-  dropzoneText:   { fontSize: typography.scale.md, color: colors.text.secondary, fontWeight: typography.weights.medium, marginBottom: spacing.xs, marginTop: spacing.sm },
+  uploadIcon:     { fontSize: 44, marginBottom: spacing.sm },
+  dropzoneText:   { fontSize: typography.scale.md, color: colors.text.secondary, fontWeight: typography.weights.medium },
   dropzoneHint:   { fontSize: typography.scale.sm, color: colors.text.muted },
 
-  loader:    { marginTop: spacing.xl },
-  listSection: { marginBottom: spacing['2xl'] },
-  listTitle: {
-    fontSize: typography.scale.xs,
-    fontWeight: typography.weights.semibold,
-    color: colors.text.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  sectionLabel: {
+    fontSize: typography.scale.xs, fontWeight: typography.weights.semibold,
+    color: colors.text.muted, textTransform: 'uppercase', letterSpacing: 1,
     marginBottom: spacing.md,
   },
 
-  docCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.bg.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    padding: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  docEmoji:    { fontSize: 22, marginRight: spacing.md },
-  docInfo:     { flex: 1 },
-  docName:     { fontSize: typography.scale.base, color: colors.text.primary, fontWeight: typography.weights.medium },
-  docMeta:     { fontSize: typography.scale.xs, color: colors.text.muted, marginTop: 2 },
-  statusBadge: { fontSize: 18, fontWeight: typography.weights.bold },
+  freshSection: { marginBottom: spacing['2xl'] },
+  prevSection:  { marginBottom: spacing['2xl'] },
+  prevHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  chevron:      { fontSize: typography.scale.xs, color: colors.text.muted },
 
-  ctaWrapper:   { marginTop: spacing.md },
-  btnOuter:     {},
-  btnDisabled:  { opacity: 0.5 },
-  btn:          { borderRadius: radius.lg, paddingVertical: spacing.lg, alignItems: 'center' },
-  btnText:      { color: '#fff', fontSize: typography.scale.md, fontWeight: typography.weights.semibold },
+  docCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.bg.surface,
+    borderRadius: radius.lg, borderWidth: 1,
+    borderColor: colors.border.default,
+    padding: spacing.lg, marginBottom: spacing.sm,
+  },
+  docCardSelected: { borderColor: colors.accent.primary, backgroundColor: 'rgba(108,99,255,0.08)' },
+  docEmoji:   { fontSize: 22, marginRight: spacing.md },
+  docInfo:    { flex: 1 },
+  docName:    { fontSize: typography.scale.base, color: colors.text.primary, fontWeight: typography.weights.medium },
+  docMeta:    { fontSize: typography.scale.xs, color: colors.text.muted, marginTop: 2 },
+  statusIcon: { fontSize: 18, fontWeight: typography.weights.bold },
+
+  ctaWrapper: { marginTop: spacing.sm },
+  btn:        { borderRadius: radius.lg, paddingVertical: spacing.lg, paddingHorizontal: spacing.lg, alignItems: 'center' },
+  btnText:    { color: '#fff', fontSize: typography.scale.sm, fontWeight: typography.weights.semibold, textAlign: 'center' },
   btnTextMuted: { color: colors.text.muted, fontSize: typography.scale.base },
 });

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { sessionsApi, type Session, type Question, type VoiceAnswerResult } from '../../services/api';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
@@ -164,8 +164,9 @@ export default function SessionScreen() {
       <View style={styles.orb1} />
       <View style={styles.orb2} />
 
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Top bar */}
-      <View style={[styles.topBar, { paddingTop: insets.top + 12 }]}>
+      <View style={styles.topBar}>
         <Text style={styles.questionCount}>Q {qIndex + 1} of {total}</Text>
         <ProgressBar current={qIndex + 1} total={total} />
         <Pressable onPress={() => router.back()} style={styles.exitBtn}>
@@ -249,12 +250,14 @@ export default function SessionScreen() {
           </Pressable>
         )}
       </View>
+      </SafeAreaView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   bg:       { flex: 1 },
+  safeArea: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   orb1:     { position: 'absolute', top: -100, right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(108, 99, 255, 0.12)' },
   orb2:     { position: 'absolute', bottom: 50, left: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(168, 85, 247, 0.08)' },
@@ -263,6 +266,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: screenPadding,
+    paddingTop: 12,
     paddingBottom: spacing.md,
     gap: spacing.md,
   },

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { dailyQuestApi, type DailyQuestDay, type DailyQuestEntry } from '../../services/api';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
@@ -141,7 +141,6 @@ function DaySection({ day }: { day: DailyQuestDay }) {
 
 export default function DailyQuestHistoryScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   const [days,       setDays]       = useState<DailyQuestDay[]>([]);
   const [total,      setTotal]      = useState(0);
@@ -178,9 +177,10 @@ export default function DailyQuestHistoryScreen() {
       <View style={styles.orb1} />
       <View style={styles.orb2} />
 
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing.md }]}
+        contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent.primary} />
@@ -247,6 +247,7 @@ export default function DailyQuestHistoryScreen() {
           </>
         )}
       </ScrollView>
+      </SafeAreaView>
     </LinearGradient>
   );
 }
@@ -254,12 +255,13 @@ export default function DailyQuestHistoryScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  bg:    { flex: 1 },
+  bg:       { flex: 1 },
+  safeArea: { flex: 1 },
   orb1:  { position: 'absolute', top: -100, right: -80,  width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(108, 99, 255, 0.12)' },
   orb2:  { position: 'absolute', bottom: 50, left: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(168, 85, 247, 0.08)' },
 
   scroll:    { flex: 1 },
-  container: { paddingHorizontal: screenPadding, paddingBottom: 48 },
+  container: { paddingHorizontal: screenPadding, paddingTop: spacing.md, paddingBottom: spacing['2xl'] },
 
   topBar:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl },
   backBtn:  { width: 60 },

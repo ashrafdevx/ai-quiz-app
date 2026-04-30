@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { sessionsApi, type Session } from '../../services/api';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
@@ -54,8 +54,7 @@ function SessionCard({ session, onPress }: { session: Session; onPress: () => vo
 }
 
 export default function SessionsScreen() {
-  const router   = useRouter();
-  const insets   = useSafeAreaInsets();
+  const router = useRouter();
   const [sessions,  setSessions]  = useState<Session[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -83,9 +82,10 @@ export default function SessionsScreen() {
       <View style={styles.orb1} />
       <View style={styles.orb2} />
 
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing.md }]}
+        contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent.primary} />}
       >
@@ -146,16 +146,18 @@ export default function SessionsScreen() {
           </View>
         )}
       </ScrollView>
+      </SafeAreaView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   bg:       { flex: 1 },
+  safeArea: { flex: 1 },
   orb1:     { position: 'absolute', top: -100, right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(108, 99, 255, 0.12)' },
   orb2:     { position: 'absolute', bottom: 50, left: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(168, 85, 247, 0.08)' },
   scroll:   { flex: 1 },
-  container: { paddingHorizontal: screenPadding, paddingBottom: 48 },
+  container: { paddingHorizontal: screenPadding, paddingTop: spacing.md, paddingBottom: spacing['2xl'] },
 
   header:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing['2xl'] },
   title:    { fontSize: typography.scale['2xl'], fontWeight: typography.weights.bold, color: colors.text.primary },

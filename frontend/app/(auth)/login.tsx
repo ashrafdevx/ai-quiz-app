@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Link } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuthStore } from "../../store/authStore";
 import { colors } from "../../constants/colors";
 import { typography } from "../../constants/typography";
@@ -24,8 +24,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const login  = useAuthStore((s) => s.login);
-  const insets = useSafeAreaInsets();
+  const login = useAuthStore((s) => s.login);
 
   async function handleLogin() {
     if (!email.trim() || !password.trim()) {
@@ -53,9 +52,10 @@ export default function LoginScreen() {
       <View style={styles.orb1} />
       <View style={styles.orb2} />
 
+      <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+        style={styles.container}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -131,6 +131,7 @@ export default function LoginScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+      </SafeAreaView>
     </LinearGradient>
   );
 }

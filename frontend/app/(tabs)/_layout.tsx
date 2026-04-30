@@ -1,6 +1,7 @@
 import { Redirect, Tabs } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../constants/colors';
 
@@ -14,6 +15,7 @@ function tabIcon(active: IoniconName, inactive: IoniconName) {
 
 export default function TabsLayout() {
   const { isAuthenticated, isLoading } = useAuthStore();
+  const insets = useSafeAreaInsets();
 
   if (isLoading) {
     return (
@@ -27,17 +29,20 @@ export default function TabsLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
+  // Tab bar height = icon+label area (60px) + bottom safe area (home indicator / nav bar)
+  const tabBarHeight = 60 + insets.bottom;
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: 'rgba(18, 21, 28, 0.92)',
+          backgroundColor: 'rgba(18, 21, 28, 0.97)',
           borderTopColor: colors.border.subtle,
           borderTopWidth: 1,
-          paddingBottom: 8,
           paddingTop: 8,
-          height: 64,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+          height: tabBarHeight,
         },
         tabBarActiveTintColor: colors.accent.primary,
         tabBarInactiveTintColor: colors.text.muted,

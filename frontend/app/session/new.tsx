@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { documentsApi, questionsApi, sessionsApi, type Document } from '../../services/api';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
@@ -35,7 +35,6 @@ function Chip<T extends string>({
 
 export default function NewSessionScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ docId?: string; docName?: string }>();
 
   const [docs,        setDocs]        = useState<Document[]>([]);
@@ -115,9 +114,10 @@ export default function NewSessionScreen() {
       <View style={styles.orb1} />
       <View style={styles.orb2} />
 
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing['2xl'] }]}
+        contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
@@ -217,16 +217,18 @@ export default function NewSessionScreen() {
           </LinearGradient>
         </Pressable>
       </ScrollView>
+      </SafeAreaView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   bg:       { flex: 1 },
+  safeArea: { flex: 1 },
   orb1:     { position: 'absolute', top: -100, right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(108, 99, 255, 0.12)' },
   orb2:     { position: 'absolute', bottom: 50, left: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(168, 85, 247, 0.08)' },
   scroll:   { flex: 1 },
-  container: { paddingHorizontal: screenPadding },
+  container: { paddingHorizontal: screenPadding, paddingTop: spacing.md, paddingBottom: spacing['2xl'] },
 
   header:   { marginBottom: spacing['2xl'] },
   backBtn:  { marginBottom: spacing.md },

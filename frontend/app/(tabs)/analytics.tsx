@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { analyticsApi, type PerformanceData, type ScoreEntry } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../constants/colors';
@@ -74,7 +74,6 @@ function ScoreTrendChart({ history }: { history: ScoreEntry[] }) {
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function AnalyticsScreen() {
-  const insets = useSafeAreaInsets();
   const { user, refreshUser } = useAuthStore();
   const [perf, setPerf]             = useState<PerformanceData | null>(null);
   const [loading, setLoading]       = useState(true);
@@ -103,9 +102,10 @@ export default function AnalyticsScreen() {
       <View style={styles.orb1} />
       <View style={styles.orb2} />
 
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing.md }]}
+        contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent.primary} />
@@ -167,17 +167,19 @@ export default function AnalyticsScreen() {
           </>
         )}
       </ScrollView>
+      </SafeAreaView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  bg:    { flex: 1 },
+  bg:       { flex: 1 },
+  safeArea: { flex: 1 },
   orb1:  { position: 'absolute', top: -100, right: -80,  width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(108, 99, 255, 0.12)' },
   orb2:  { position: 'absolute', bottom: 50, left: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(168, 85, 247, 0.08)' },
 
   scroll:    { flex: 1 },
-  container: { paddingHorizontal: screenPadding, paddingBottom: 48 },
+  container: { paddingHorizontal: screenPadding, paddingTop: spacing.md, paddingBottom: spacing['2xl'] },
 
   header:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing['2xl'] },
   title:    { fontSize: typography.scale['2xl'], fontWeight: typography.weights.bold, color: colors.text.primary },
