@@ -8,7 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "http://ai-quiz-app-production-3916.up.railway.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://ai-quiz-app-production-3916.up.railway.app"
       }
     },
     "preview": {
@@ -17,13 +17,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "http://ai-quiz-app-production-3916.up.railway.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://ai-quiz-app-production-3916.up.railway.app"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "http://ai-quiz-app-production-3916.up.railway.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://ai-quiz-app-production-3916.up.railway.app"
       }
     }
   },
