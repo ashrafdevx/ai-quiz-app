@@ -1,559 +1,395 @@
-# 🚀 Deployment Guide — AI Document Quiz App
+# Deployment Guide — AI Quiz App
 
-> **Stack:** Next.js (Vercel) · Node.js API (Railway) · Python FastAPI (Railway) · MongoDB Atlas · Expo (React Native)
-> **Answer:** Use **both** — browser for first-time setup & config, terminal for every deploy after that.
-
----
-
-## Browser vs Terminal — The Rule
-
-| Task | Where |
-|---|---|
-| Create accounts, projects, teams | Browser |
-| Set environment variables | Browser (safer — never in terminal history) |
-| Connect GitHub repo to a service | Browser |
-| Configure domains, SSL, billing | Browser |
-| Every actual deployment after setup | Terminal |
-| Checking logs when something breaks | Both |
-
-**One-liner:** Set up once in the browser. Deploy forever from the terminal.
+> **Stack:** React Native (Expo) · Node.js / Express · MongoDB Atlas · LanceDB · Groq · Gemini
+> **Last updated:** 2026-04-30
 
 ---
 
-## Part 1 — Local Development (Before Any Deployment)
+## Table of Contents
 
-### Step 1.1 — Folder Structure
+1. [Project Structure](#1-project-structure)
+2. [Local Development](#2-local-development)
+3. [GitHub Setup](#3-github-setup)
+4. [MongoDB Atlas](#4-mongodb-atlas)
+5. [Deploy Backend → Railway](#5-deploy-backend--railway)
+6. [Deploy Mobile → Expo EAS](#6-deploy-mobile--expo-eas)
+7. [Environment Variables Reference](#7-environment-variables-reference)
+8. [Production Config](#8-production-config)
+9. [Pre-Deploy Checklist](#9-pre-deploy-checklist)
+10. [Troubleshooting](#10-troubleshooting)
+11. [Cost Estimate](#11-cost-estimate)
+12. [Quick Reference](#12-quick-reference)
+
+---
+
+## 1. Project Structure
 
 ```
 ai-quiz-app/
-├── mobile/          ← Expo React Native
-├── backend/         ← Node.js / Express
-├── ai-service/      ← Python FastAPI
-├── landing/         ← Next.js landing page (DocQuizLanding.jsx)
-├── docker-compose.yml
-├── .gitignore
-└── README.md
-```
-
-### Step 1.2 — Root `.gitignore`
-
-```gitignore
-# Node
-node_modules/
-.next/
-dist/
-build/
-
-# Python
-__pycache__/
-*.pyc
-venv/
-.venv/
-*.egg-info/
-
-# Env files — NEVER commit these
-.env
-.env.local
-.env.production
-.env.*.local
-
-# Expo
-.expo/
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# ChromaDB local data
-chroma_data/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-npm-debug.log*
-```
-
-### Step 1.3 — `docker-compose.yml` (Local Dev Only)
-
-```yaml
-version: '3.8'
-
-services:
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
-    ports:
-      - "4000:4000"
-    env_file:
-      - ./backend/.env
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-    depends_on:
-      - chroma
-
-  ai-service:
-    build:
-      context: ./ai-service
-      dockerfile: Dockerfile.dev
-    ports:
-      - "8000:8000"
-    env_file:
-      - ./ai-service/.env
-    volumes:
-      - ./ai-service:/app
-      - ./chroma_data:/chroma_data
-
-  chroma:
-    image: chromadb/chroma:latest
-    ports:
-      - "8001:8000"
-    volumes:
-      - ./chroma_data:/chroma/chroma
-    environment:
-      - IS_PERSISTENT=TRUE
-
-# Run everything: docker-compose up
-# Stop everything: docker-compose down
-# Rebuild after dependency changes: docker-compose up --build
-```
-
-### Step 1.4 — Backend `Dockerfile.dev`
-
-```dockerfile
-FROM node:20-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-EXPOSE 4000
-CMD ["npm", "run", "dev"]
-```
-
-### Step 1.5 — AI Service `Dockerfile.dev`
-
-```dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-EXPOSE 8000
-CMD ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-### Step 1.6 — Run Everything Locally
-
-```bash
-# Terminal — from project root
-docker-compose up
-
-# Expected output:
-# backend    | Server running on port 4000
-# ai-service | Uvicorn running on http://0.0.0.0:8000
-# chroma     | Running on http://0.0.0.0:8000
-
-# Test all three health checks:
-curl http://localhost:4000/health   # { "status": "ok" }
-curl http://localhost:8000/health   # { "status": "ok" }
-curl http://localhost:8001/api/v1/heartbeat  # { "nanosecond heartbeat": ... }
+├── backend/                 ← Node.js / Express API (port 3000)
+│   ├── src/
+│   │   ├── app.js           ← Entry point
+│   │   ├── middleware/      ← auth, upload, audioUpload
+│   │   ├── models/          ← Mongoose schemas (User, Document, DailyQuestPlan, DailyQuestEntry)
+│   │   ├── routes/          ← auth, documents, questions, sessions, voiceAnswer, feedback, analytics, dailyQuest
+│   │   ├── services/        ← geminiService (Groq + Gemini), lanceDb, documentParser
+│   │   └── prompts/         ← AI prompt templates
+│   ├── server.js            ← HTTP server bootstrap
+│   ├── Dockerfile.dev       ← Docker for local dev
+│   ├── .env                 ← Local secrets (never commit)
+│   └── package.json
+├── frontend/                ← Expo React Native app
+│   ├── app/                 ← Expo Router file-based routes
+│   ├── components/          ← VoiceRecorder, QuestionFeedbackCard
+│   ├── services/api.ts      ← All API calls + TypeScript types
+│   ├── store/authStore.ts   ← Zustand auth state
+│   ├── constants/           ← colors, typography, spacing
+│   ├── .env                 ← EXPO_PUBLIC_API_BASE_URL
+│   └── package.json
+├── data/
+│   └── lancedb/             ← LanceDB vector store (auto-created, gitignored)
+├── docs/
+│   └── STACK.md             ← Full technology documentation
+├── docker-compose.yml       ← Local dev (backend only)
+└── .gitignore
 ```
 
 ---
 
-## Part 2 — GitHub Setup (Required for All Platforms)
+## 2. Local Development
 
-### Step 2.1 — Init Git and Push
+### Step 2.1 — Prerequisites
+
+Install these once:
+- [Node.js 20+](https://nodejs.org)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop)
+- [Expo Go](https://expo.dev/go) on your physical phone
+
+### Step 2.2 — Clone & Install
 
 ```bash
-# Terminal — from project root
+git clone https://github.com/YOUR_USERNAME/ai-quiz-app.git
+cd ai-quiz-app
+
+# Install backend dependencies
+cd backend && npm install && cd ..
+
+# Install frontend dependencies
+cd frontend && npm install && cd ..
+```
+
+### Step 2.3 — Backend Environment
+
+Create `backend/.env` (never commit this file):
+
+```env
+PORT=3000
+NODE_ENV=development
+MONGODB_URI=mongodb+srv://your-user:your-pass@cluster.mongodb.net/aiquizapp
+JWT_SECRET=your-minimum-32-character-random-secret-here
+GROQ_API_KEY=gsk_...
+GEMINI_API_KEY=AIza...
+```
+
+### Step 2.4 — Frontend Environment
+
+Create `frontend/.env`:
+
+```env
+# Use your machine's LAN IP — not localhost — so the phone can reach it
+EXPO_PUBLIC_API_BASE_URL=http://192.168.x.x:3000
+```
+
+Find your LAN IP:
+- **Windows:** `ipconfig` → look for IPv4 Address under your Wi-Fi adapter
+- **Mac/Linux:** `ifconfig | grep inet`
+
+> Phone and laptop must be on the **same Wi-Fi network**.
+
+### Step 2.5 — Run Locally
+
+**Option A — Docker (recommended):**
+
+```bash
+# From project root — starts backend with hot reload
+docker-compose up
+
+# Rebuild if you change package.json
+docker-compose up --build
+
+# Stop
+docker-compose down
+```
+
+**Option B — Terminal (faster startup):**
+
+```bash
+# Terminal 1 — Backend
+cd backend
+npm run dev
+# Expected: Server running on port 3000
+
+# Terminal 2 — Frontend
+cd frontend
+npx expo start
+# Scan QR code with Expo Go on your phone
+```
+
+### Step 2.6 — Verify Local Setup
+
+```bash
+# Health check
+curl http://localhost:3000/api/health
+# Expected: { "status": "ok" }
+
+# Register a test user
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test User","email":"test@test.com","password":"Test1234!"}'
+# Expected: { "token": "eyJ...", "user": { ... } }
+```
+
+---
+
+## 3. GitHub Setup
+
+### Step 3.1 — Initialize and Push
+
+```bash
+# From project root
 git init
 git add .
-git commit -m "feat: initial project setup"
+git commit -m "feat: initial commit"
 
-# Browser: go to github.com → New Repository
-# Name: ai-quiz-app
-# Visibility: Private (recommended while in dev)
-# Do NOT initialize with README (you already have files)
-
-# Terminal — back in your project
+# Create repo at github.com (Private recommended)
 git remote add origin https://github.com/YOUR_USERNAME/ai-quiz-app.git
 git branch -M main
 git push -u origin main
 ```
 
-### Step 2.2 — Branch Strategy (Simple)
+### Step 3.2 — Branch Strategy
 
 ```
-main         ← production-ready code only
-dev          ← your active development branch
-feature/xyz  ← individual feature branches
+main          ← production only — Railway auto-deploys from this
+dev           ← active development
+feature/xyz   ← individual features
 ```
 
 ```bash
-# Create dev branch
-git checkout -b dev
-git push -u origin dev
-
-# Daily workflow:
+# Daily workflow
 git checkout dev
-# ... make changes ...
-git add .
-git commit -m "feat: sprint-2 document upload pipeline"
+# make changes...
+git add . && git commit -m "feat: your message"
 git push
 
-# Deploy to production:
+# Ship to production
 git checkout main
 git merge dev
-git push   # triggers auto-deploy on Vercel + Railway
+git push   # triggers Railway auto-deploy
+```
+
+### Step 3.3 — .gitignore (root)
+
+Ensure these are ignored:
+
+```gitignore
+# Environment
+.env
+.env.local
+.env.*
+
+# Node
+node_modules/
+dist/
+
+# Expo
+.expo/
+*.jks *.p8 *.p12 *.key *.mobileprovision
+
+# LanceDB data
+data/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
 ```
 
 ---
 
-## Part 3 — MongoDB Atlas Setup
+## 4. MongoDB Atlas
 
-### Step 3.1 — Browser Setup (One Time)
+### Step 4.1 — Create Cluster (Browser, One Time)
 
 ```
 1. Go to: https://cloud.mongodb.com
 2. Sign up / Log in
-3. Click "Build a Database"
-4. Choose: M0 FREE (for dev) → AWS → ap-south-1 (Pakistan region, lowest latency)
-5. Username: quiz-admin
-6. Password: generate a strong one, SAVE IT NOW
-7. Click "Add My Current IP Address"
-8. Click "Finish and Close"
-9. Click "Connect" → "Drivers" → Copy the connection string
+3. Build a Database → M0 FREE → AWS → ap-south-1
+4. Username: quiz-admin
+5. Password: generate a strong one — save it immediately
+6. IP Access: Add 0.0.0.0/0 (allow all — required for Railway)
+7. Connect → Drivers → Copy connection string
 ```
 
 Connection string format:
 ```
-mongodb+srv://quiz-admin:<password>@cluster0.xxxxx.mongodb.net/docquiz?retryWrites=true&w=majority
+mongodb+srv://quiz-admin:<password>@cluster0.xxxxx.mongodb.net/aiquizapp?retryWrites=true&w=majority
 ```
 
-### Step 3.2 — Allow All IPs (for Railway/Vercel)
+### Step 4.2 — Collections Created Automatically
 
-```
-Browser: Atlas Dashboard
-→ Network Access
-→ Add IP Address
-→ Allow Access from Anywhere (0.0.0.0/0)
-→ Confirm
+Mongoose creates these on first use — no manual setup needed:
 
-Note: Fine for dev. For production, whitelist Railway/Vercel IPs specifically.
-```
+| Collection | Purpose |
+|---|---|
+| `users` | Accounts, password hashes, stats |
+| `documents` | Uploaded file metadata (not the text content) |
+| `dailyquestplans` | One plan per user per UTC day |
+| `dailyquestentries` | Individual answer submissions |
 
 ---
 
-## Part 4 — Vercel (Next.js Landing Page)
+## 5. Deploy Backend → Railway
 
-### Step 4.1 — Browser Setup (One Time)
-
-```
-1. Go to: https://vercel.com
-2. Sign up with GitHub account
-3. Click "Add New Project"
-4. Import your "ai-quiz-app" repo
-5. Set Root Directory: landing    ← important!
-6. Framework Preset: Next.js      ← auto-detected
-7. Build Command: next build       ← default
-8. Output Directory: .next         ← default
-9. Click "Deploy"
-```
-
-### Step 4.2 — Environment Variables in Browser
-
-```
-Vercel Dashboard → Your Project → Settings → Environment Variables
-
-Add:
-NEXT_PUBLIC_API_URL = https://your-api.railway.app
-NEXT_PUBLIC_APP_NAME = DocQuiz AI
-
-Set for: Production + Preview + Development
-```
-
-### Step 4.3 — Terminal Deploy (Every Time After Setup)
-
-```bash
-# Install Vercel CLI once
-npm install -g vercel
-
-# Login once
-vercel login
-
-# Deploy from landing/ folder
-cd landing
-vercel --prod
-
-# Or just push to main branch — auto-deploys
-git push origin main
-```
-
-### Step 4.4 — Custom Domain (Optional, Browser)
-
-```
-Vercel Dashboard → Project → Settings → Domains
-→ Add: docquizai.com
-→ Follow DNS instructions (add CNAME record in your domain registrar)
-→ Vercel handles SSL automatically
-```
-
-### Step 4.5 — Verify Deployment
-
-```bash
-# Terminal
-curl https://your-app.vercel.app
-# Should return your landing page HTML with 200 status
-```
-
----
-
-## Part 5 — Railway (Node.js API + Python FastAPI)
-
-### Step 5.1 — Browser Setup (One Time)
+### Step 5.1 — Create Railway Project (Browser, One Time)
 
 ```
 1. Go to: https://railway.app
 2. Sign up with GitHub
-3. Click "New Project"
-4. Select "Deploy from GitHub repo"
-5. Select "ai-quiz-app"
-6. Railway will show all folders — select "backend" first
-7. Railway auto-detects Node.js from package.json
-8. Click "Deploy"
+3. New Project → Deploy from GitHub Repo
+4. Select: ai-quiz-app
+5. Root Directory: backend         ← important
+6. Railway auto-detects Node.js
+7. Click Deploy
 ```
 
-### Step 5.2 — Add Second Service (FastAPI) in Browser
+### Step 5.2 — Add Environment Variables (Browser)
 
 ```
-Railway Dashboard → Your Project
-→ + New Service
-→ GitHub Repo → ai-quiz-app
-→ Root Directory: ai-service
-→ Railway detects Python from requirements.txt
-→ Deploy
+Railway Dashboard → your project → backend service → Variables → Add All:
 ```
 
-### Step 5.3 — Railway Dockerfiles for Production
+| Variable | Value |
+|---|---|
+| `PORT` | `3000` |
+| `NODE_ENV` | `production` |
+| `MONGODB_URI` | `mongodb+srv://quiz-admin:...@cluster.mongodb.net/aiquizapp` |
+| `JWT_SECRET` | `your-minimum-32-char-random-string` |
+| `GROQ_API_KEY` | `gsk_...` |
+| `GEMINI_API_KEY` | `AIza...` |
 
-**`backend/Dockerfile`** (production):
+### Step 5.3 — Production Dockerfile
+
+Create `backend/Dockerfile` (Railway uses this for production, not `Dockerfile.dev`):
+
 ```dockerfile
 FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 COPY . .
-EXPOSE 4000
+EXPOSE 3000
 CMD ["node", "server.js"]
 ```
 
-**`ai-service/Dockerfile`** (production):
-```dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-RUN apt-get update && apt-get install -y \
-    tesseract-ocr \
-    libgl1-mesa-glx \
-    && rm -rf /var/lib/apt/lists/*
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
-```
-
-### Step 5.4 — Environment Variables in Browser
+### Step 5.4 — Get Your Public URL
 
 ```
-Railway Dashboard → backend service → Variables
-
-MONGODB_URI         = mongodb+srv://quiz-admin:...
-JWT_SECRET          = your-super-secret-key-min-32-chars
-AWS_S3_BUCKET       = docquiz-uploads
-AWS_ACCESS_KEY_ID   = AKIA...
-AWS_SECRET_ACCESS_KEY = ...
-AI_SERVICE_URL      = http://ai-service.railway.internal:8000
-NODE_ENV            = production
-PORT                = 4000
+Railway Dashboard → backend → Settings → Networking → Generate Domain
 ```
 
+Your backend URL will be:
 ```
-Railway Dashboard → ai-service → Variables
-
-ANTHROPIC_API_KEY   = sk-ant-...
-ASSEMBLYAI_API_KEY  = ...
-CHROMA_PERSIST_PATH = /data/chroma
-AWS_S3_BUCKET       = docquiz-uploads
-AWS_ACCESS_KEY_ID   = AKIA...
-AWS_SECRET_ACCESS_KEY = ...
-ENVIRONMENT         = production
+https://ai-quiz-app-production.up.railway.app
 ```
 
-> **Key:** `AI_SERVICE_URL = http://ai-service.railway.internal:8000`
-> This is Railway's private internal network — the AI service is NOT exposed to the public internet. Only your backend can call it. This is the correct architecture.
-
-### Step 5.5 — Add Persistent Volume for ChromaDB (Browser)
+### Step 5.5 — Enable Auto-Deploy
 
 ```
-Railway Dashboard → ai-service → Volumes
-→ Add Volume
-→ Mount Path: /data/chroma
-→ Size: 5 GB (free tier gives 1GB, upgrade as needed)
+Railway Dashboard → backend → Settings → Deploy → Auto Deploy → main branch
 ```
 
-### Step 5.6 — Install Railway CLI and Deploy from Terminal
+Now every `git push origin main` auto-deploys the backend.
+
+### Step 5.6 — Install Railway CLI (Terminal Deploys)
 
 ```bash
-# Install once
 npm install -g @railway/cli
+railway login          # opens browser OAuth
 
-# Login once
-railway login
-# Opens browser for OAuth — click Authorize
+# From project root
+railway link           # select your project
 
-# Link your project (run from repo root)
-railway link
-# Select your project from the list
-
-# Deploy backend from terminal
+# Deploy from terminal
 cd backend
 railway up
 
-# Deploy AI service from terminal
-cd ../ai-service
-railway up
-
 # View live logs
-railway logs
+railway logs --tail
 
-# Open service in browser
-railway open
+# Check deployment status
+railway status
 ```
 
-### Step 5.7 — Auto-Deploy on Push (Recommended)
-
-```
-Railway Dashboard → backend → Settings → Deploy
-→ Enable "Auto Deploy"
-→ Branch: main
-
-# Now every git push to main auto-deploys
-git push origin main
-# Railway: building... deployed ✓
-# Vercel:  building... deployed ✓
-# Both happen simultaneously
-```
-
-### Step 5.8 — Verify Railway Deployment
+### Step 5.7 — Verify Live Backend
 
 ```bash
-# Terminal — test your live API
-curl https://your-api.railway.app/health
-# { "status": "ok", "env": "production" }
+# Replace with your actual Railway URL
+curl https://your-app.up.railway.app/api/health
+# Expected: { "status": "ok" }
 
-curl -X POST https://your-api.railway.app/api/auth/register \
+curl -X POST https://your-app.up.railway.app/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"name":"Test","email":"test@test.com","password":"Test1234"}'
-# { "token": "eyJ...", "user": {...} }
+  -d '{"name":"Test","email":"test@example.com","password":"Test1234!"}'
+# Expected: { "token": "eyJ...", "user": { ... } }
 ```
 
 ---
 
-## Part 6 — AWS S3 (File Storage)
+## 6. Deploy Mobile → Expo EAS
 
-### Step 6.1 — Browser Setup (One Time)
+### Step 6.1 — Point Frontend at Live Backend
 
-```
-1. Go to: https://aws.amazon.com → Sign in to Console
-2. Search "S3" → Create Bucket
-3. Bucket name: docquiz-uploads-dev
-4. Region: ap-south-1 (Mumbai — closest to Pakistan)
-5. Block all public access: ON (files served via signed URLs only)
-6. Create bucket
+Update `frontend/.env`:
 
-For production bucket:
-Bucket name: docquiz-uploads-prod
-Same settings
+```env
+EXPO_PUBLIC_API_BASE_URL=https://your-app.up.railway.app
 ```
 
-### Step 6.2 — Create IAM User (Browser)
+Commit and push this change.
 
-```
-AWS Console → IAM → Users → Create User
-Name: docquiz-s3-user
-Permissions: Attach policies directly
-Policy: AmazonS3FullAccess (or create custom policy below)
-
-Custom policy (more secure):
-{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Effect": "Allow",
-    "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject","s3:ListBucket"],
-    "Resource": [
-      "arn:aws:s3:::docquiz-uploads-*",
-      "arn:aws:s3:::docquiz-uploads-*/*"
-    ]
-  }]
-}
-
-After creating user:
-→ Security credentials tab
-→ Create Access Key
-→ Use case: Application running outside AWS
-→ COPY Access Key ID and Secret — you won't see the secret again
-```
-
----
-
-## Part 7 — Expo / React Native Deployment
-
-### Step 7.1 — Development (No Setup Needed)
+### Step 6.2 — EAS Setup (One Time)
 
 ```bash
-cd mobile
-npx expo start
-
-# Scan QR code with Expo Go app on your phone
-# App hot-reloads on every file save
-# Works on iOS and Android simultaneously
-```
-
-### Step 7.2 — EAS Build Setup (One Time, Browser + Terminal)
-
-```bash
-# Terminal
 npm install -g eas-cli
 eas login
 
-# In your mobile/ folder
+cd frontend
 eas build:configure
 # Creates eas.json — commit this file
 ```
 
-**`mobile/eas.json`:**
+### Step 6.3 — Create `frontend/eas.json`
+
 ```json
 {
   "cli": {
     "version": ">= 5.0.0"
   },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" }
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {
@@ -562,205 +398,295 @@ eas build:configure
 }
 ```
 
-### Step 7.3 — Build for Testing (Terminal)
+### Step 6.4 — Build Android APK (Share Directly — No Store Needed)
 
 ```bash
-# Build Android APK for testers (no Play Store needed)
+cd frontend
 eas build --platform android --profile preview
 
-# Build iOS for TestFlight
-eas build --platform ios --profile preview
-
-# Build both at once
-eas build --platform all --profile preview
-
-# EAS sends you a download link when done (~10-15 min)
-# Share the APK link directly with testers on Android
-# Submit iOS build to TestFlight in App Store Connect
+# EAS builds in the cloud (~10-15 min)
+# You get a download link → share the .apk directly with anyone
+# Install on Android: enable "Install from unknown sources" in phone settings
 ```
 
-### Step 7.4 — Production Build + Store Submit (Terminal)
+### Step 6.5 — Build for Production Stores
 
 ```bash
-# Production builds
+# Build both platforms
 eas build --platform all --profile production
 
-# Submit to stores
-eas submit --platform ios      # submits to App Store Connect
-eas submit --platform android  # submits to Play Store
+# Submit to Google Play Store
+eas submit --platform android
 
-# Or combined
-eas submit --platform all
+# Submit to Apple App Store (requires $99/yr Apple Developer account)
+eas submit --platform ios
 ```
+
+### Step 6.6 — Update App After Backend Changes
+
+The mobile app talks to the backend URL baked into the `.env` at build time. If your Railway URL changes:
+
+1. Update `frontend/.env` with the new URL
+2. Run `eas build` again to produce a new APK
 
 ---
 
-## Part 8 — Environment Variables Summary
+## 7. Environment Variables Reference
 
-### Never commit `.env` files. Use these templates:
+### Backend (`backend/.env`)
 
-**`backend/.env.example`** (commit this, not `.env`):
-```bash
-# Server
-PORT=4000
+| Variable | Required | Example | Description |
+|---|---|---|---|
+| `PORT` | No | `3000` | Defaults to 3000 |
+| `NODE_ENV` | Yes | `production` | Enables production error handling |
+| `MONGODB_URI` | Yes | `mongodb+srv://...` | MongoDB Atlas connection string |
+| `JWT_SECRET` | Yes | `random-32-char-string` | Signs all auth tokens — change this to invalidate all sessions |
+| `GROQ_API_KEY` | Yes | `gsk_...` | From console.groq.com — free tier: 14,400 req/day |
+| `GEMINI_API_KEY` | Yes | `AIza...` | From aistudio.google.com — used for embeddings + vision OCR |
+
+### Frontend (`frontend/.env`)
+
+| Variable | Required | Example | Description |
+|---|---|---|---|
+| `EXPO_PUBLIC_API_BASE_URL` | Yes | `https://your-app.up.railway.app` | Baked into the JS bundle at build time |
+
+> `EXPO_PUBLIC_*` variables are **visible to users** — never put secrets here.
+
+### Backend `.env.example` (commit this file, not `.env`)
+
+```env
+PORT=3000
 NODE_ENV=development
-
-# Database
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/docquiz
-
-# Auth
-JWT_SECRET=change-this-to-minimum-32-character-random-string
-JWT_EXPIRES_IN=7d
-
-# AWS S3
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_REGION=ap-south-1
-AWS_S3_BUCKET=docquiz-uploads-dev
-
-# Internal services
-AI_SERVICE_URL=http://localhost:8000
-```
-
-**`ai-service/.env.example`:**
-```bash
-# AI APIs
-ANTHROPIC_API_KEY=sk-ant-
-ASSEMBLYAI_API_KEY=
-
-# Storage
-CHROMA_PERSIST_PATH=./chroma_data
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_REGION=ap-south-1
-AWS_S3_BUCKET=docquiz-uploads-dev
-
-# Server
-ENVIRONMENT=development
-PORT=8000
-```
-
-**`mobile/.env.example`:**
-```bash
-EXPO_PUBLIC_API_BASE_URL=http://localhost:4000
-EXPO_PUBLIC_APP_ENV=development
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/aiquizapp
+JWT_SECRET=replace-with-32-char-minimum-random-string
+GROQ_API_KEY=gsk_replace_with_real_key
+GEMINI_API_KEY=AIza_replace_with_real_key
 ```
 
 ---
 
-## Part 9 — Deployment Checklist Per Sprint
+## 8. Production Config
 
-### Before pushing to `main` (production):
+### Security Headers
+
+Add to `backend/src/app.js` before routes:
+
+```js
+const helmet = require('helmet');  // npm install helmet
+app.use(helmet());
+app.set('trust proxy', 1);        // required behind Railway's proxy
+```
+
+### Rate Limiting
+
+```js
+const rateLimit = require('express-rate-limit');  // npm install express-rate-limit
+
+app.use('/api/auth', rateLimit({
+  windowMs: 15 * 60 * 1000,   // 15 minutes
+  max: 20,                      // 20 login attempts per window
+  message: { error: 'Too many requests, please try again later.' },
+}));
+
+app.use('/api/questions/generate', rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,                      // 10 generation calls per minute
+}));
+```
+
+### Logging
+
+```js
+const morgan = require('morgan');   // npm install morgan
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+```
+
+### LanceDB on Railway
+
+LanceDB writes to `./data/lancedb/` on disk. Railway's filesystem is **ephemeral** — data is lost on each deploy.
+
+**Fix — Add a Railway Volume:**
+```
+Railway Dashboard → backend service → Volumes
+→ Add Volume
+→ Mount Path: /app/data
+→ Size: 1 GB (free)
+```
+
+This persists the LanceDB data across deploys.
+
+### CORS for Production
+
+In `backend/src/app.js`, restrict CORS to known origins:
+
+```js
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production'
+    ? [
+        'https://your-app.up.railway.app',
+        /^exp:\/\//, // Expo Go
+      ]
+    : '*',
+  credentials: true,
+}));
+```
+
+---
+
+## 9. Pre-Deploy Checklist
+
+### Every Deploy
 
 ```
 Code
- [ ] All tests pass locally
- [ ] No console.log left in production code
- [ ] No hardcoded API keys or secrets
- [ ] .env files are in .gitignore
+ [ ] No hardcoded IP addresses or localhost URLs
+ [ ] No console.log with sensitive data
+ [ ] No API keys in source code
+ [ ] .env in .gitignore, .env.example committed instead
 
 Backend
- [ ] Health check endpoint responds 200
- [ ] Auth endpoints tested with Postman
- [ ] Error handling returns proper status codes
-
-AI Service
- [ ] /health endpoint responds
- [ ] Document processing tested with a real PDF
- [ ] Claude API key has sufficient credits
+ [ ] GET /api/health returns 200
+ [ ] POST /api/auth/register works end-to-end
+ [ ] POST /api/auth/login works end-to-end
+ [ ] POST /api/documents/upload works with a PDF
+ [ ] POST /api/questions/generate returns questions
+ [ ] POST /api/sessions/:id/voice-answer transcribes correctly
 
 Database
- [ ] MongoDB Atlas connection works from Railway IP
- [ ] Indexes created on frequently queried fields
- [ ] No sensitive data in test documents
+ [ ] MongoDB Atlas connection string is valid
+ [ ] Atlas IP whitelist includes 0.0.0.0/0 (or Railway IPs)
 
-Vercel (Landing)
- [ ] Build passes with no errors
- [ ] SEO meta tags visible in page source
- [ ] Mobile responsive on phone browser
+AI APIs
+ [ ] GROQ_API_KEY is valid — test at console.groq.com
+ [ ] GEMINI_API_KEY is valid — test at aistudio.google.com
+ [ ] Both APIs have sufficient quota
+
+Mobile
+ [ ] EXPO_PUBLIC_API_BASE_URL points to deployed Railway URL (not localhost)
+ [ ] EAS build completes without error
+ [ ] App connects to backend on a real device
+ [ ] Voice recording + submission works on device
 ```
 
 ---
 
-## Part 10 — Monitoring & Logs
+## 10. Troubleshooting
 
-### Railway Logs (Terminal)
+### Backend
 
-```bash
-# Live logs for backend
-railway logs --service backend --tail
-
-# Live logs for AI service
-railway logs --service ai-service --tail
-
-# Last 100 lines
-railway logs --service backend -n 100
-```
-
-### Railway Logs (Browser)
-
-```
-Railway Dashboard → Service → Deployments → View Logs
-Filter by: ERROR, WARN, INFO
-```
-
-### Vercel Logs (Browser)
-
-```
-Vercel Dashboard → Project → Functions → View logs
-Real-time request logs available in Vercel Pro
-```
-
-### Add Sentry for Error Tracking (Optional but Recommended)
-
-```bash
-# Backend
-npm install @sentry/node
-# Add to server.js: Sentry.init({ dsn: process.env.SENTRY_DSN })
-
-# React Native
-npx expo install @sentry/react-native
-```
-
----
-
-## Part 11 — Cost Estimate (Monthly)
-
-| Service | Free Tier | Paid (Dev) |
+| Error | Cause | Fix |
 |---|---|---|
-| Vercel | Free (100GB bandwidth) | $0 |
-| Railway | $5 free credit | ~$5–10/mo |
-| MongoDB Atlas | M0 Free (512MB) | $0 |
-| AWS S3 | 5GB free | ~$0.02/GB |
-| AssemblyAI | $0.37/hr audio | Pay per use |
-| Anthropic API | Pay per use | ~$5–20/mo |
-| Expo EAS Build | 30 builds/mo free | $0 |
-| **Total dev phase** | | **~$10–35/mo** |
+| `MongooseServerSelectionError` | Wrong URI or IP not whitelisted | Check `MONGODB_URI`, add `0.0.0.0/0` in Atlas Network Access |
+| `JsonWebTokenError: invalid signature` | `JWT_SECRET` changed or missing | Set consistent `JWT_SECRET` in Railway variables |
+| `503 POST /api/documents/upload` | Gemini API unavailable or quota exceeded | Check Gemini quota at aistudio.google.com; Groq is the fallback for text |
+| `429 Too Many Requests` from Groq | Hit daily or per-minute limit | Free tier: 14,400/day. Add 60s delay or upgrade plan |
+| Port already in use | Another process on 3000 | `npx kill-port 3000` or change `PORT` in `.env` |
+| LanceDB data lost on redeploy | Railway ephemeral filesystem | Add a Railway Volume mounted at `/app/data` |
+
+### Frontend / Mobile
+
+| Error | Cause | Fix |
+|---|---|---|
+| `Network request failed` | Wrong `EXPO_PUBLIC_API_BASE_URL` | Check the URL — must be LAN IP for local, Railway URL for production |
+| `Network request failed` (local) | Phone not on same Wi-Fi | Connect phone and laptop to same network |
+| Filename shows `%20` or `%` | URL-encoded filename from Android picker | Fixed in backend (`decodeURIComponent(originalname)`) — redeploy backend |
+| Tab labels not visible | Tab bar height too small | Fixed in `_layout.tsx` (height: 60 + insets.bottom) |
+| `Microphone permission denied` | Mic permission not granted | Go to phone Settings → Apps → AI Quiz → Permissions → Microphone |
+| Voice answer returns empty transcript | Audio format unsupported or too short | Speak for at least 3 seconds; ensure mic is not muted |
+| `expo-av` error on Android | Missing RECORD_AUDIO permission in app.json | Already added — rebuild the APK with `eas build` |
+
+### EAS Build
+
+| Error | Cause | Fix |
+|---|---|---|
+| `eas: command not found` | EAS CLI not installed | `npm install -g eas-cli` |
+| Build fails: missing env | `EXPO_PUBLIC_*` not set | Add to `frontend/.env` and rebuild |
+| APK not installing on Android | "Unknown sources" disabled | Phone Settings → Security → Install Unknown Apps → enable for Files |
+| iOS build fails: no Apple account | No Apple Developer membership | Use Android APK for testing; iOS requires $99/yr membership |
+
+### API Keys
+
+| Symptom | Check |
+|---|---|
+| All AI features fail | Both `GROQ_API_KEY` and `GEMINI_API_KEY` set in Railway? |
+| Questions not generating | Groq key valid at [console.groq.com](https://console.groq.com) |
+| Voice transcription fails | Groq Whisper uses same key — check quota |
+| Session vectors not saving | Gemini embedding fails — check `GEMINI_API_KEY` |
+| PDF upload returns 422 | Image-based (scanned) PDF — use a text-based PDF instead |
 
 ---
 
-## Quick Reference — Daily Commands
+## 11. Cost Estimate
+
+| Service | Free Tier | Notes |
+|---|---|---|
+| **Railway** | $5 credit/month | Backend + 1 GB volume; ~$5-10/mo after free credit |
+| **MongoDB Atlas** | M0 — 512 MB free | Sufficient for hundreds of users |
+| **Groq API** | 14,400 requests/day free | Covers ~1,400 sessions/day at 10 calls each |
+| **Gemini API** | 1,500 requests/day free | Used for embeddings (1 per session) + OCR fallback |
+| **Expo EAS** | 30 builds/month free | Enough for active development |
+| **Google Play Store** | $25 one-time | For Android distribution |
+| **Apple App Store** | $99/year | For iOS distribution |
+| **Total (dev/small scale)** | **~$0–10/month** | Until Railway free credit runs out |
+
+---
+
+## 12. Quick Reference
+
+### Local Dev
 
 ```bash
-# Start local dev
-docker-compose up
+# Start everything with Docker
+docker-compose up --build
 
-# Push and deploy (triggers auto-deploy on Railway + Vercel)
-git add . && git commit -m "feat: your message" && git push origin main
+# Start without Docker
+cd backend && npm run dev          # Terminal 1
+cd frontend && npx expo start      # Terminal 2
 
-# Check Railway deployment status
-railway status
+# Health check
+curl http://localhost:3000/api/health
+```
 
-# View live backend logs
+### Deploy Backend
+
+```bash
+# Push to main → Railway auto-deploys
+git add . && git commit -m "your message" && git push origin main
+
+# Manual deploy via CLI
+cd backend && railway up
+
+# View live logs
 railway logs --tail
 
-# Build Expo app for testing
-eas build --platform android --profile preview
-
-# Check Vercel deployment
-vercel ls
+# Check status
+railway status
 ```
 
----
+### Build Mobile App
 
-*Last updated: 2025 | Platforms: Vercel · Railway · MongoDB Atlas · AWS S3 · Expo EAS*
+```bash
+cd frontend
+
+# Android APK for testing (no store needed)
+eas build --platform android --profile preview
+
+# Production builds for both stores
+eas build --platform all --profile production
+
+# Submit to stores
+eas submit --platform android
+eas submit --platform ios
+```
+
+### Verify Live App
+
+```bash
+# Replace with your Railway URL
+BASE=https://your-app.up.railway.app
+
+curl $BASE/api/health
+curl -X POST $BASE/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@test.com","password":"Test1234!"}'
+```

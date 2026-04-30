@@ -12,26 +12,4 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-    depends_on:
-      - chroma
-
-  ai-service:
-    build:
-      context: ./ai-service
-      dockerfile: Dockerfile.dev
-    ports:
-      - "8000:8000"
-    env_file:
-      - ./ai-service/.env
-    volumes:
-      - ./ai-service:/app
-      - ./chroma_data:/chroma_data
-
-  chroma:
-    image: chromadb/chroma:latest
-    ports:
-      - "8001:8000"
-    volumes:
-      - ./chroma_data:/chroma/chroma
-    environment:
-      - IS_PERSISTENT=TRUE
+      - ./data:/app/data   # LanceDB vector store persistence

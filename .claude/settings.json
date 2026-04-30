@@ -3,7 +3,8 @@
     "allow": [
       "Bash(curl -s http://localhost:8081)",
       "Bash(curl -s \"http://localhost:8081\")",
-      "Bash(curl -s http://localhost:3000/api/health)"
+      "Bash(curl -s http://localhost:3000/api/health)",
+      "Bash(grep -E \"\\\\.js$\")"
     ]
   }
 }
