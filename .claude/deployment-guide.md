@@ -61,6 +61,7 @@ ai-quiz-app/
 ### Step 2.1 — Prerequisites
 
 Install these once:
+
 - [Node.js 20+](https://nodejs.org)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop)
 - [Expo Go](https://expo.dev/go) on your physical phone
@@ -101,6 +102,7 @@ EXPO_PUBLIC_API_BASE_URL=http://192.168.x.x:3000
 ```
 
 Find your LAN IP:
+
 - **Windows:** `ipconfig` → look for IPv4 Address under your Wi-Fi adapter
 - **Mac/Linux:** `ifconfig | grep inet`
 
@@ -234,6 +236,7 @@ Thumbs.db
 ```
 
 Connection string format:
+
 ```
 mongodb+srv://quiz-admin:<password>@cluster0.xxxxx.mongodb.net/aiquizapp?retryWrites=true&w=majority
 ```
@@ -242,12 +245,12 @@ mongodb+srv://quiz-admin:<password>@cluster0.xxxxx.mongodb.net/aiquizapp?retryWr
 
 Mongoose creates these on first use — no manual setup needed:
 
-| Collection | Purpose |
-|---|---|
-| `users` | Accounts, password hashes, stats |
-| `documents` | Uploaded file metadata (not the text content) |
-| `dailyquestplans` | One plan per user per UTC day |
-| `dailyquestentries` | Individual answer submissions |
+| Collection          | Purpose                                       |
+| ------------------- | --------------------------------------------- |
+| `users`             | Accounts, password hashes, stats              |
+| `documents`         | Uploaded file metadata (not the text content) |
+| `dailyquestplans`   | One plan per user per UTC day                 |
+| `dailyquestentries` | Individual answer submissions                 |
 
 ---
 
@@ -271,14 +274,14 @@ Mongoose creates these on first use — no manual setup needed:
 Railway Dashboard → your project → backend service → Variables → Add All:
 ```
 
-| Variable | Value |
-|---|---|
-| `PORT` | `3000` |
-| `NODE_ENV` | `production` |
-| `MONGODB_URI` | `mongodb+srv://quiz-admin:...@cluster.mongodb.net/aiquizapp` |
-| `JWT_SECRET` | `your-minimum-32-char-random-string` |
-| `GROQ_API_KEY` | `gsk_...` |
-| `GEMINI_API_KEY` | `AIza...` |
+| Variable         | Value                                                        |
+| ---------------- | ------------------------------------------------------------ |
+| `PORT`           | `3000`                                                       |
+| `NODE_ENV`       | `production`                                                 |
+| `MONGODB_URI`    | `mongodb+srv://quiz-admin:...@cluster.mongodb.net/aiquizapp` |
+| `JWT_SECRET`     | `your-minimum-32-char-random-string`                         |
+| `GROQ_API_KEY`   | `gsk_...`                                                    |
+| `GEMINI_API_KEY` | `AIza...`                                                    |
 
 ### Step 5.3 — Production Dockerfile
 
@@ -301,6 +304,7 @@ Railway Dashboard → backend → Settings → Networking → Generate Domain
 ```
 
 Your backend URL will be:
+
 ```
 https://ai-quiz-app-production.up.railway.app
 ```
@@ -413,7 +417,7 @@ eas build --platform android --profile preview
 
 ```bash
 # Build both platforms
-eas build --platform all --profile production
+y
 
 # Submit to Google Play Store
 eas submit --platform android
@@ -435,20 +439,20 @@ The mobile app talks to the backend URL baked into the `.env` at build time. If 
 
 ### Backend (`backend/.env`)
 
-| Variable | Required | Example | Description |
-|---|---|---|---|
-| `PORT` | No | `3000` | Defaults to 3000 |
-| `NODE_ENV` | Yes | `production` | Enables production error handling |
-| `MONGODB_URI` | Yes | `mongodb+srv://...` | MongoDB Atlas connection string |
-| `JWT_SECRET` | Yes | `random-32-char-string` | Signs all auth tokens — change this to invalidate all sessions |
-| `GROQ_API_KEY` | Yes | `gsk_...` | From console.groq.com — free tier: 14,400 req/day |
-| `GEMINI_API_KEY` | Yes | `AIza...` | From aistudio.google.com — used for embeddings + vision OCR |
+| Variable         | Required | Example                 | Description                                                    |
+| ---------------- | -------- | ----------------------- | -------------------------------------------------------------- |
+| `PORT`           | No       | `3000`                  | Defaults to 3000                                               |
+| `NODE_ENV`       | Yes      | `production`            | Enables production error handling                              |
+| `MONGODB_URI`    | Yes      | `mongodb+srv://...`     | MongoDB Atlas connection string                                |
+| `JWT_SECRET`     | Yes      | `random-32-char-string` | Signs all auth tokens — change this to invalidate all sessions |
+| `GROQ_API_KEY`   | Yes      | `gsk_...`               | From console.groq.com — free tier: 14,400 req/day              |
+| `GEMINI_API_KEY` | Yes      | `AIza...`               | From aistudio.google.com — used for embeddings + vision OCR    |
 
 ### Frontend (`frontend/.env`)
 
-| Variable | Required | Example | Description |
-|---|---|---|---|
-| `EXPO_PUBLIC_API_BASE_URL` | Yes | `https://your-app.up.railway.app` | Baked into the JS bundle at build time |
+| Variable                   | Required | Example                           | Description                            |
+| -------------------------- | -------- | --------------------------------- | -------------------------------------- |
+| `EXPO_PUBLIC_API_BASE_URL` | Yes      | `https://your-app.up.railway.app` | Baked into the JS bundle at build time |
 
 > `EXPO_PUBLIC_*` variables are **visible to users** — never put secrets here.
 
@@ -472,33 +476,39 @@ GEMINI_API_KEY=AIza_replace_with_real_key
 Add to `backend/src/app.js` before routes:
 
 ```js
-const helmet = require('helmet');  // npm install helmet
+const helmet = require("helmet"); // npm install helmet
 app.use(helmet());
-app.set('trust proxy', 1);        // required behind Railway's proxy
+app.set("trust proxy", 1); // required behind Railway's proxy
 ```
 
 ### Rate Limiting
 
 ```js
-const rateLimit = require('express-rate-limit');  // npm install express-rate-limit
+const rateLimit = require("express-rate-limit"); // npm install express-rate-limit
 
-app.use('/api/auth', rateLimit({
-  windowMs: 15 * 60 * 1000,   // 15 minutes
-  max: 20,                      // 20 login attempts per window
-  message: { error: 'Too many requests, please try again later.' },
-}));
+app.use(
+  "/api/auth",
+  rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, // 20 login attempts per window
+    message: { error: "Too many requests, please try again later." },
+  }),
+);
 
-app.use('/api/questions/generate', rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,                      // 10 generation calls per minute
-}));
+app.use(
+  "/api/questions/generate",
+  rateLimit({
+    windowMs: 60 * 1000,
+    max: 10, // 10 generation calls per minute
+  }),
+);
 ```
 
 ### Logging
 
 ```js
-const morgan = require('morgan');   // npm install morgan
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+const morgan = require("morgan"); // npm install morgan
+app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 ```
 
 ### LanceDB on Railway
@@ -506,6 +516,7 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 LanceDB writes to `./data/lancedb/` on disk. Railway's filesystem is **ephemeral** — data is lost on each deploy.
 
 **Fix — Add a Railway Volume:**
+
 ```
 Railway Dashboard → backend service → Volumes
 → Add Volume
@@ -520,15 +531,18 @@ This persists the LanceDB data across deploys.
 In `backend/src/app.js`, restrict CORS to known origins:
 
 ```js
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? [
-        'https://your-app.up.railway.app',
-        /^exp:\/\//, // Expo Go
-      ]
-    : '*',
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin:
+      process.env.NODE_ENV === "production"
+        ? [
+            "https://your-app.up.railway.app",
+            /^exp:\/\//, // Expo Go
+          ]
+        : "*",
+    credentials: true,
+  }),
+);
 ```
 
 ---
@@ -574,60 +588,60 @@ Mobile
 
 ### Backend
 
-| Error | Cause | Fix |
-|---|---|---|
-| `MongooseServerSelectionError` | Wrong URI or IP not whitelisted | Check `MONGODB_URI`, add `0.0.0.0/0` in Atlas Network Access |
-| `JsonWebTokenError: invalid signature` | `JWT_SECRET` changed or missing | Set consistent `JWT_SECRET` in Railway variables |
-| `503 POST /api/documents/upload` | Gemini API unavailable or quota exceeded | Check Gemini quota at aistudio.google.com; Groq is the fallback for text |
-| `429 Too Many Requests` from Groq | Hit daily or per-minute limit | Free tier: 14,400/day. Add 60s delay or upgrade plan |
-| Port already in use | Another process on 3000 | `npx kill-port 3000` or change `PORT` in `.env` |
-| LanceDB data lost on redeploy | Railway ephemeral filesystem | Add a Railway Volume mounted at `/app/data` |
+| Error                                  | Cause                                    | Fix                                                                      |
+| -------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ |
+| `MongooseServerSelectionError`         | Wrong URI or IP not whitelisted          | Check `MONGODB_URI`, add `0.0.0.0/0` in Atlas Network Access             |
+| `JsonWebTokenError: invalid signature` | `JWT_SECRET` changed or missing          | Set consistent `JWT_SECRET` in Railway variables                         |
+| `503 POST /api/documents/upload`       | Gemini API unavailable or quota exceeded | Check Gemini quota at aistudio.google.com; Groq is the fallback for text |
+| `429 Too Many Requests` from Groq      | Hit daily or per-minute limit            | Free tier: 14,400/day. Add 60s delay or upgrade plan                     |
+| Port already in use                    | Another process on 3000                  | `npx kill-port 3000` or change `PORT` in `.env`                          |
+| LanceDB data lost on redeploy          | Railway ephemeral filesystem             | Add a Railway Volume mounted at `/app/data`                              |
 
 ### Frontend / Mobile
 
-| Error | Cause | Fix |
-|---|---|---|
-| `Network request failed` | Wrong `EXPO_PUBLIC_API_BASE_URL` | Check the URL — must be LAN IP for local, Railway URL for production |
-| `Network request failed` (local) | Phone not on same Wi-Fi | Connect phone and laptop to same network |
-| Filename shows `%20` or `%` | URL-encoded filename from Android picker | Fixed in backend (`decodeURIComponent(originalname)`) — redeploy backend |
-| Tab labels not visible | Tab bar height too small | Fixed in `_layout.tsx` (height: 60 + insets.bottom) |
-| `Microphone permission denied` | Mic permission not granted | Go to phone Settings → Apps → AI Quiz → Permissions → Microphone |
-| Voice answer returns empty transcript | Audio format unsupported or too short | Speak for at least 3 seconds; ensure mic is not muted |
-| `expo-av` error on Android | Missing RECORD_AUDIO permission in app.json | Already added — rebuild the APK with `eas build` |
+| Error                                 | Cause                                       | Fix                                                                      |
+| ------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------ |
+| `Network request failed`              | Wrong `EXPO_PUBLIC_API_BASE_URL`            | Check the URL — must be LAN IP for local, Railway URL for production     |
+| `Network request failed` (local)      | Phone not on same Wi-Fi                     | Connect phone and laptop to same network                                 |
+| Filename shows `%20` or `%`           | URL-encoded filename from Android picker    | Fixed in backend (`decodeURIComponent(originalname)`) — redeploy backend |
+| Tab labels not visible                | Tab bar height too small                    | Fixed in `_layout.tsx` (height: 60 + insets.bottom)                      |
+| `Microphone permission denied`        | Mic permission not granted                  | Go to phone Settings → Apps → AI Quiz → Permissions → Microphone         |
+| Voice answer returns empty transcript | Audio format unsupported or too short       | Speak for at least 3 seconds; ensure mic is not muted                    |
+| `expo-av` error on Android            | Missing RECORD_AUDIO permission in app.json | Already added — rebuild the APK with `eas build`                         |
 
 ### EAS Build
 
-| Error | Cause | Fix |
-|---|---|---|
-| `eas: command not found` | EAS CLI not installed | `npm install -g eas-cli` |
-| Build fails: missing env | `EXPO_PUBLIC_*` not set | Add to `frontend/.env` and rebuild |
-| APK not installing on Android | "Unknown sources" disabled | Phone Settings → Security → Install Unknown Apps → enable for Files |
-| iOS build fails: no Apple account | No Apple Developer membership | Use Android APK for testing; iOS requires $99/yr membership |
+| Error                             | Cause                         | Fix                                                                 |
+| --------------------------------- | ----------------------------- | ------------------------------------------------------------------- |
+| `eas: command not found`          | EAS CLI not installed         | `npm install -g eas-cli`                                            |
+| Build fails: missing env          | `EXPO_PUBLIC_*` not set       | Add to `frontend/.env` and rebuild                                  |
+| APK not installing on Android     | "Unknown sources" disabled    | Phone Settings → Security → Install Unknown Apps → enable for Files |
+| iOS build fails: no Apple account | No Apple Developer membership | Use Android APK for testing; iOS requires $99/yr membership         |
 
 ### API Keys
 
-| Symptom | Check |
-|---|---|
-| All AI features fail | Both `GROQ_API_KEY` and `GEMINI_API_KEY` set in Railway? |
-| Questions not generating | Groq key valid at [console.groq.com](https://console.groq.com) |
-| Voice transcription fails | Groq Whisper uses same key — check quota |
-| Session vectors not saving | Gemini embedding fails — check `GEMINI_API_KEY` |
-| PDF upload returns 422 | Image-based (scanned) PDF — use a text-based PDF instead |
+| Symptom                    | Check                                                          |
+| -------------------------- | -------------------------------------------------------------- |
+| All AI features fail       | Both `GROQ_API_KEY` and `GEMINI_API_KEY` set in Railway?       |
+| Questions not generating   | Groq key valid at [console.groq.com](https://console.groq.com) |
+| Voice transcription fails  | Groq Whisper uses same key — check quota                       |
+| Session vectors not saving | Gemini embedding fails — check `GEMINI_API_KEY`                |
+| PDF upload returns 422     | Image-based (scanned) PDF — use a text-based PDF instead       |
 
 ---
 
 ## 11. Cost Estimate
 
-| Service | Free Tier | Notes |
-|---|---|---|
-| **Railway** | $5 credit/month | Backend + 1 GB volume; ~$5-10/mo after free credit |
-| **MongoDB Atlas** | M0 — 512 MB free | Sufficient for hundreds of users |
-| **Groq API** | 14,400 requests/day free | Covers ~1,400 sessions/day at 10 calls each |
-| **Gemini API** | 1,500 requests/day free | Used for embeddings (1 per session) + OCR fallback |
-| **Expo EAS** | 30 builds/month free | Enough for active development |
-| **Google Play Store** | $25 one-time | For Android distribution |
-| **Apple App Store** | $99/year | For iOS distribution |
-| **Total (dev/small scale)** | **~$0–10/month** | Until Railway free credit runs out |
+| Service                     | Free Tier                | Notes                                              |
+| --------------------------- | ------------------------ | -------------------------------------------------- |
+| **Railway**                 | $5 credit/month          | Backend + 1 GB volume; ~$5-10/mo after free credit |
+| **MongoDB Atlas**           | M0 — 512 MB free         | Sufficient for hundreds of users                   |
+| **Groq API**                | 14,400 requests/day free | Covers ~1,400 sessions/day at 10 calls each        |
+| **Gemini API**              | 1,500 requests/day free  | Used for embeddings (1 per session) + OCR fallback |
+| **Expo EAS**                | 30 builds/month free     | Enough for active development                      |
+| **Google Play Store**       | $25 one-time             | For Android distribution                           |
+| **Apple App Store**         | $99/year                 | For iOS distribution                               |
+| **Total (dev/small scale)** | **~$0–10/month**         | Until Railway free credit runs out                 |
 
 ---
 
