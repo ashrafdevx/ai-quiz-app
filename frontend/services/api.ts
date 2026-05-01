@@ -69,6 +69,8 @@ export const documentsApi = {
   list: () => api.get<{ documents: Document[] }>('/api/documents'),
 
   get: (id: string) => api.get<{ document: Document }>(`/api/documents/${id}`),
+
+  delete: (id: string) => api.delete<{ success: boolean }>(`/api/documents/${id}`),
 };
 
 // Question generation endpoints

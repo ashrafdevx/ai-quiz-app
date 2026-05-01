@@ -104,4 +104,21 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
+/**
+ * DELETE /api/documents/:id
+ * Deletes a document record. Sessions using this document are unaffected
+ * because they store a copy of the extracted text at creation time.
+ */
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const doc = await Document.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+    if (!doc) {
+      return res.status(404).json({ success: false, message: 'Document not found.', code: 'NOT_FOUND' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

@@ -1,108 +1,91 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
-    <!-- Background gradient -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#0D0A1F"/>
       <stop offset="100%" stop-color="#0A0B0F"/>
     </linearGradient>
 
-    <!-- Main purple-pink gradient -->
     <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6C63FF"/>
-      <stop offset="50%" stop-color="#A855F7"/>
+      <stop offset="0%"   stop-color="#6C63FF"/>
+      <stop offset="50%"  stop-color="#A855F7"/>
       <stop offset="100%" stop-color="#EC4899"/>
     </linearGradient>
 
-    <!-- Soft glow gradient -->
     <radialGradient id="glowCenter" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#7C3AED" stop-opacity="0.35"/>
+      <stop offset="0%"   stop-color="#7C3AED" stop-opacity="0.32"/>
       <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
     </radialGradient>
 
-    <!-- Card face gradient -->
     <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1C1740"/>
+      <stop offset="0%"   stop-color="#1C1740"/>
       <stop offset="100%" stop-color="#130F2E"/>
     </linearGradient>
 
-    <!-- Glow filter -->
+    <!-- Glow on the search icon strokes -->
     <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
 
-    <!-- Subtle drop shadow -->
     <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
-      <feDropShadow dx="0" dy="8" stdDeviation="20" flood-color="#6C63FF" flood-opacity="0.4"/>
+      <feDropShadow dx="0" dy="8" stdDeviation="18" flood-color="#6C63FF" flood-opacity="0.4"/>
     </filter>
-
-    <clipPath id="iconClip">
-      <rect width="1024" height="1024" rx="230"/>
-    </clipPath>
   </defs>
 
-  <!-- ── Background ── -->
+  <!-- Background -->
   <rect width="1024" height="1024" rx="230" fill="url(#bgGrad)"/>
 
-  <!-- Ambient glow blob -->
-  <ellipse cx="512" cy="500" rx="380" ry="360" fill="url(#glowCenter)"/>
+  <!-- Ambient glow -->
+  <ellipse cx="512" cy="505" rx="300" ry="280" fill="url(#glowCenter)"/>
 
-  <!-- ── Card / document base ── -->
-  <rect x="240" y="200" width="420" height="530" rx="36"
+  <!-- ── Document card (centered, safe-zone safe) ── -->
+  <rect x="315" y="290" width="310" height="380" rx="30"
         fill="url(#cardGrad)" filter="url(#shadow)"/>
+  <rect x="315" y="290" width="310" height="380" rx="30"
+        fill="none" stroke="url(#mainGrad)" stroke-width="2" opacity="0.6"/>
 
-  <!-- Card border glow -->
-  <rect x="240" y="200" width="420" height="530" rx="36"
-        fill="none" stroke="url(#mainGrad)" stroke-width="2.5" opacity="0.6"/>
+  <!-- Document lines — 3 question rows -->
+  <rect x="368" y="368" width="195" height="11" rx="5.5" fill="url(#mainGrad)" opacity="0.95"/>
+  <rect x="368" y="392" width="145" height="9"  rx="4.5" fill="#ffffff"        opacity="0.18"/>
 
-  <!-- ── Document lines (quiz questions) ── -->
-  <!-- Line group 1 -->
-  <rect x="295" y="295" width="220" height="13" rx="6.5" fill="url(#mainGrad)" opacity="0.95"/>
-  <rect x="295" y="323" width="165" height="10" rx="5"   fill="#ffffff"        opacity="0.18"/>
+  <rect x="368" y="444" width="195" height="11" rx="5.5" fill="url(#mainGrad)" opacity="0.95"/>
+  <rect x="368" y="468" width="160" height="9"  rx="4.5" fill="#ffffff"        opacity="0.18"/>
 
-  <!-- Line group 2 -->
-  <rect x="295" y="390" width="220" height="13" rx="6.5" fill="url(#mainGrad)" opacity="0.95"/>
-  <rect x="295" y="418" width="180" height="10" rx="5"   fill="#ffffff"        opacity="0.18"/>
+  <rect x="368" y="520" width="195" height="11" rx="5.5" fill="url(#mainGrad)" opacity="0.95"/>
+  <rect x="368" y="544" width="120" height="9"  rx="4.5" fill="#ffffff"        opacity="0.18"/>
 
-  <!-- Line group 3 -->
-  <rect x="295" y="485" width="220" height="13" rx="6.5" fill="url(#mainGrad)" opacity="0.95"/>
-  <rect x="295" y="513" width="140" height="10" rx="5"   fill="#ffffff"        opacity="0.18"/>
+  <!-- ── Search badge — bottom-right of card (same position as spark badge) ── -->
+  <!-- Dark backing -->
+  <circle cx="582" cy="636" r="78" fill="#0A0B0F" opacity="0.92"/>
+  <!-- Subtle inner gradient fill -->
+  <circle cx="582" cy="636" r="64" fill="url(#mainGrad)" opacity="0.12"/>
+  <!-- Gradient ring border -->
+  <circle cx="582" cy="636" r="78"
+          fill="none" stroke="url(#mainGrad)" stroke-width="2.5" opacity="0.70"/>
 
-  <!-- ── AI spark badge (bottom-right overlap) ── -->
-  <!-- Outer ring glow -->
-  <circle cx="618" cy="672" r="100" fill="#0A0B0F" opacity="0.9"/>
-  <circle cx="618" cy="672" r="100"
-          fill="none" stroke="url(#mainGrad)" stroke-width="3" opacity="0.7"/>
-
-  <!-- Inner fill -->
-  <circle cx="618" cy="672" r="85"
-          fill="url(#mainGrad)" opacity="0.12"/>
-
-  <!-- Lightning bolt (AI spark) -->
-  <path d="M628 610
-           L598 672
-           L619 672
-           L610 734
-           L642 666
-           L621 666
-           Z"
-        fill="url(#mainGrad)"
+  <!-- ── Search icon inside badge ── -->
+  <!-- Lens circle — centered slightly up-left within badge for visual balance -->
+  <circle cx="570" cy="622" r="26"
+          fill="none" stroke="url(#mainGrad)" stroke-width="10"
+          filter="url(#softGlow)"/>
+  <!-- Handle — starts at outer edge of lens (45° SE) and extends outward -->
+  <line x1="589" y1="641" x2="607" y2="659"
+        stroke="url(#mainGrad)" stroke-width="10" stroke-linecap="round"
         filter="url(#softGlow)"/>
 
-  <!-- ── Dot accents (neural nodes) ── -->
-  <circle cx="180" cy="300" r="8"  fill="#6C63FF" opacity="0.5"/>
-  <circle cx="155" cy="360" r="5"  fill="#A855F7" opacity="0.4"/>
-  <circle cx="840" cy="250" r="7"  fill="#EC4899" opacity="0.45"/>
-  <circle cx="860" cy="320" r="4"  fill="#A855F7" opacity="0.35"/>
-  <circle cx="175" cy="680" r="6"  fill="#6C63FF" opacity="0.4"/>
-  <circle cx="845" cy="720" r="9"  fill="#EC4899" opacity="0.4"/>
-  <circle cx="820" cy="790" r="5"  fill="#A855F7" opacity="0.3"/>
+  <!-- ── Neural dot accents ── -->
+  <circle cx="232" cy="318" r="7"  fill="#6C63FF" opacity="0.5"/>
+  <circle cx="208" cy="374" r="4"  fill="#A855F7" opacity="0.4"/>
+  <circle cx="792" cy="272" r="6"  fill="#EC4899" opacity="0.45"/>
+  <circle cx="812" cy="338" r="3"  fill="#A855F7" opacity="0.35"/>
+  <circle cx="228" cy="688" r="5"  fill="#6C63FF" opacity="0.4"/>
+  <circle cx="796" cy="726" r="8"  fill="#EC4899" opacity="0.4"/>
+  <circle cx="772" cy="792" r="4"  fill="#A855F7" opacity="0.3"/>
 
-  <!-- Connecting lines between nodes (subtle) -->
-  <line x1="180" y1="300" x2="155" y2="360" stroke="#6C63FF" stroke-width="1.5" opacity="0.25"/>
-  <line x1="840" y1="250" x2="860" y2="320" stroke="#EC4899" stroke-width="1.5" opacity="0.25"/>
-  <line x1="845" y1="720" x2="820" y2="790" stroke="#A855F7" stroke-width="1.5" opacity="0.2"/>
+  <line x1="232" y1="318" x2="208" y2="374" stroke="#6C63FF" stroke-width="1.5" opacity="0.25"/>
+  <line x1="792" y1="272" x2="812" y2="338" stroke="#EC4899" stroke-width="1.5" opacity="0.25"/>
+  <line x1="796" y1="726" x2="772" y2="792" stroke="#A855F7" stroke-width="1.5" opacity="0.20"/>
 </svg>

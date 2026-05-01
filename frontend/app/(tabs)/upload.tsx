@@ -8,6 +8,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { documentsApi, type Document, extractMessage } from '../../services/api';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
 import { spacing, radius, screenPadding } from '../../constants/spacing';
@@ -107,6 +108,28 @@ export default function UploadScreen() {
     }
   };
 
+  const handleDeleteDoc = (doc: Document) => {
+    Alert.alert(
+      'Delete document?',
+      `"${doc.fileName}" will be removed. Your existing quiz sessions are not affected.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive',
+          onPress: async () => {
+            try {
+              await documentsApi.delete(doc._id);
+              setPrevDocs(prev => prev.filter(d => d._id !== doc._id));
+              if (selectedDoc?._id === doc._id) setSelectedDoc(freshDoc ?? null);
+            } catch (err: any) {
+              Alert.alert('Delete failed', extractMessage(err, 'Could not delete the document.'));
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleGenerate = () => {
     const doc = selectedDoc ?? freshDoc;
     if (!doc) return;
@@ -189,20 +212,24 @@ export default function UploadScreen() {
               </Pressable>
 
               {prevExpanded && prevDocs.map(doc => (
-                <Pressable
-                  key={doc._id}
-                  style={[styles.docCard, selectedDoc?._id === doc._id && styles.docCardSelected]}
-                  onPress={() => setSelectedDoc(prev => prev?._id === doc._id ? (freshDoc ?? null) : doc)}
-                >
-                  <Text style={styles.docEmoji}>📄</Text>
-                  <View style={styles.docInfo}>
-                    <Text style={styles.docName} numberOfLines={1}>{doc.fileName}</Text>
-                    <Text style={styles.docMeta}>{doc.wordCount.toLocaleString()} words</Text>
-                  </View>
-                  {selectedDoc?._id === doc._id && (
-                    <Text style={[styles.statusIcon, { color: colors.accent.primary }]}>✓</Text>
-                  )}
-                </Pressable>
+                <View key={doc._id} style={styles.docRow}>
+                  <Pressable
+                    style={[styles.docCard, styles.docCardFlex, selectedDoc?._id === doc._id && styles.docCardSelected]}
+                    onPress={() => setSelectedDoc(prev => prev?._id === doc._id ? (freshDoc ?? null) : doc)}
+                  >
+                    <Text style={styles.docEmoji}>📄</Text>
+                    <View style={styles.docInfo}>
+                      <Text style={styles.docName} numberOfLines={1}>{doc.fileName}</Text>
+                      <Text style={styles.docMeta}>{doc.wordCount.toLocaleString()} words</Text>
+                    </View>
+                    {selectedDoc?._id === doc._id && (
+                      <Text style={[styles.statusIcon, { color: colors.accent.primary }]}>✓</Text>
+                    )}
+                  </Pressable>
+                  <Pressable style={styles.deleteBtn} onPress={() => handleDeleteDoc(doc)}>
+                    <Ionicons name="trash-outline" size={18} color={colors.accent.danger} />
+                  </Pressable>
+                </View>
               ))}
             </View>
           )}
@@ -275,6 +302,7 @@ const styles = StyleSheet.create({
   prevHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   chevron:      { fontSize: typography.scale.xs, color: colors.text.muted },
 
+  docRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, gap: spacing.sm },
   docCard: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: colors.bg.surface,
@@ -282,7 +310,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border.default,
     padding: spacing.lg, marginBottom: spacing.sm,
   },
+  docCardFlex:     { flex: 1, marginBottom: 0 },
   docCardSelected: { borderColor: colors.accent.primary, backgroundColor: 'rgba(108,99,255,0.08)' },
+  deleteBtn: {
+    width: 40, height: 40, borderRadius: radius.md,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   docEmoji:   { fontSize: 22, marginRight: spacing.md },
   docInfo:    { flex: 1 },
   docName:    { fontSize: typography.scale.base, color: colors.text.primary, fontWeight: typography.weights.medium },

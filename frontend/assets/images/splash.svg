@@ -1,121 +1,109 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
-    <!-- App background gradient (matches all screens) -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%"   stop-color="#0A0B0F"/>
       <stop offset="50%"  stop-color="#0D1018"/>
       <stop offset="100%" stop-color="#0A0B0F"/>
     </linearGradient>
 
-    <!-- Purple-pink main gradient -->
     <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%"   stop-color="#6C63FF"/>
       <stop offset="50%"  stop-color="#A855F7"/>
       <stop offset="100%" stop-color="#EC4899"/>
     </linearGradient>
 
-    <!-- Orb glow top-right -->
-    <radialGradient id="orb1Grad" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"   stop-color="#6C63FF" stop-opacity="0.18"/>
-      <stop offset="100%" stop-color="#6C63FF" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- Orb glow bottom-left -->
-    <radialGradient id="orb2Grad" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"   stop-color="#A855F7" stop-opacity="0.13"/>
-      <stop offset="100%" stop-color="#A855F7" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- Center glow behind icon -->
-    <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"   stop-color="#7C3AED" stop-opacity="0.25"/>
-      <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- Card gradient -->
     <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%"   stop-color="#1C1740"/>
       <stop offset="100%" stop-color="#130F2E"/>
     </linearGradient>
 
-    <!-- Glow filter -->
-    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="blur"/>
+    <radialGradient id="orb1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#6C63FF" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#6C63FF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orb2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#A855F7" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#A855F7" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowCenter" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#7C3AED" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
 
-    <filter id="shadow">
-      <feDropShadow dx="0" dy="10" stdDeviation="24" flood-color="#6C63FF" flood-opacity="0.35"/>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="18" flood-color="#6C63FF" flood-opacity="0.4"/>
     </filter>
   </defs>
 
-  <!-- ── Full background ── -->
+  <!-- Full background -->
   <rect width="1024" height="1024" fill="url(#bgGrad)"/>
 
-  <!-- ── Ambient orbs (match app screens) ── -->
-  <!-- Top-right orb -->
-  <ellipse cx="870" cy="154" rx="260" ry="260" fill="url(#orb1Grad)"/>
-  <!-- Bottom-left orb -->
-  <ellipse cx="154" cy="870" rx="220" ry="220" fill="url(#orb2Grad)"/>
+  <!-- Ambient orbs -->
+  <ellipse cx="870" cy="154" rx="260" ry="260" fill="url(#orb1)"/>
+  <ellipse cx="154" cy="870" rx="220" ry="220" fill="url(#orb2)"/>
 
   <!-- Center glow behind icon -->
-  <ellipse cx="512" cy="440" rx="280" ry="260" fill="url(#centerGlow)"/>
+  <ellipse cx="512" cy="420" rx="310" ry="290" fill="url(#glowCenter)"/>
 
-  <!-- ── Icon card ── -->
-  <rect x="342" y="270" width="340" height="420" rx="40"
+  <!-- ── Document card (centered) ── -->
+  <rect x="357" y="200" width="310" height="380" rx="30"
         fill="url(#cardGrad)" filter="url(#shadow)"/>
-  <rect x="342" y="270" width="340" height="420" rx="40"
-        fill="none" stroke="url(#mainGrad)" stroke-width="2" opacity="0.55"/>
+  <rect x="357" y="200" width="310" height="380" rx="30"
+        fill="none" stroke="url(#mainGrad)" stroke-width="2" opacity="0.6"/>
 
-  <!-- Document lines -->
-  <rect x="390" y="348" width="185" height="12" rx="6"  fill="url(#mainGrad)" opacity="0.95"/>
-  <rect x="390" y="374" width="140" height="9"  rx="4.5" fill="#ffffff"        opacity="0.16"/>
+  <!-- Document lines — 3 question rows -->
+  <rect x="410" y="278" width="195" height="11" rx="5.5" fill="url(#mainGrad)" opacity="0.95"/>
+  <rect x="410" y="302" width="145" height="9"  rx="4.5" fill="#ffffff"        opacity="0.18"/>
 
-  <rect x="390" y="428" width="185" height="12" rx="6"  fill="url(#mainGrad)" opacity="0.95"/>
-  <rect x="390" y="454" width="155" height="9"  rx="4.5" fill="#ffffff"        opacity="0.16"/>
+  <rect x="410" y="354" width="195" height="11" rx="5.5" fill="url(#mainGrad)" opacity="0.95"/>
+  <rect x="410" y="378" width="160" height="9"  rx="4.5" fill="#ffffff"        opacity="0.18"/>
 
-  <rect x="390" y="508" width="185" height="12" rx="6"  fill="url(#mainGrad)" opacity="0.95"/>
-  <rect x="390" y="534" width="120" height="9"  rx="4.5" fill="#ffffff"        opacity="0.16"/>
+  <rect x="410" y="430" width="195" height="11" rx="5.5" fill="url(#mainGrad)" opacity="0.95"/>
+  <rect x="410" y="454" width="120" height="9"  rx="4.5" fill="#ffffff"        opacity="0.18"/>
 
-  <!-- AI spark badge -->
-  <circle cx="628" cy="638" r="72" fill="#0A0B0F" opacity="0.95"/>
-  <circle cx="628" cy="638" r="72" fill="url(#mainGrad)" opacity="0.15"/>
-  <circle cx="628" cy="638" r="72" fill="none" stroke="url(#mainGrad)" stroke-width="2.5" opacity="0.65"/>
+  <!-- ── Search badge — bottom-right of card ── -->
+  <circle cx="624" cy="546" r="78" fill="#0A0B0F" opacity="0.92"/>
+  <circle cx="624" cy="546" r="64" fill="url(#mainGrad)" opacity="0.12"/>
+  <circle cx="624" cy="546" r="78"
+          fill="none" stroke="url(#mainGrad)" stroke-width="2.5" opacity="0.70"/>
 
-  <!-- Lightning bolt -->
-  <path d="M636 590 L608 640 L628 640 L620 686 L650 632 L630 632 Z"
-        fill="url(#mainGrad)" filter="url(#softGlow)"/>
+  <!-- Search icon inside badge -->
+  <circle cx="612" cy="532" r="26"
+          fill="none" stroke="url(#mainGrad)" stroke-width="10"
+          filter="url(#softGlow)"/>
+  <line x1="631" y1="551" x2="649" y2="569"
+        stroke="url(#mainGrad)" stroke-width="10" stroke-linecap="round"
+        filter="url(#softGlow)"/>
 
-  <!-- ── App name ── -->
-  <text x="512" y="790"
+  <!-- ── Wordmark ── -->
+  <text x="512" y="716"
         font-family="system-ui, -apple-system, sans-serif"
-        font-size="48"
-        font-weight="700"
-        fill="white"
-        text-anchor="middle"
-        letter-spacing="-1">AI Quiz App</text>
+        font-size="86" font-weight="800"
+        fill="white" text-anchor="middle" letter-spacing="-2">Quizly</text>
 
-  <!-- Subtitle -->
-  <text x="512" y="840"
+  <!-- Tagline -->
+  <text x="512" y="768"
         font-family="system-ui, -apple-system, sans-serif"
-        font-size="24"
-        font-weight="400"
-        fill="#6C63FF"
-        text-anchor="middle"
-        opacity="0.85">Turn documents into knowledge</text>
+        font-size="26" font-weight="400"
+        fill="#A855F7" text-anchor="middle" opacity="0.80">Your AI-powered quiz companion</text>
 
-  <!-- ── Neural dots ── -->
+  <!-- Neural dot accents -->
   <circle cx="140" cy="310" r="7"  fill="#6C63FF" opacity="0.45"/>
   <circle cx="115" cy="375" r="4"  fill="#A855F7" opacity="0.35"/>
-  <circle cx="884" cy="280" r="6"  fill="#EC4899" opacity="0.4"/>
-  <circle cx="905" cy="350" r="4"  fill="#A855F7" opacity="0.3"/>
+  <circle cx="884" cy="280" r="6"  fill="#EC4899" opacity="0.40"/>
+  <circle cx="905" cy="350" r="4"  fill="#A855F7" opacity="0.30"/>
   <circle cx="135" cy="700" r="5"  fill="#6C63FF" opacity="0.35"/>
   <circle cx="890" cy="730" r="8"  fill="#EC4899" opacity="0.38"/>
   <circle cx="868" cy="800" r="4"  fill="#A855F7" opacity="0.28"/>
-  <line x1="140" y1="310" x2="115" y2="375" stroke="#6C63FF" stroke-width="1.5" opacity="0.2"/>
-  <line x1="884" y1="280" x2="905" y2="350" stroke="#EC4899" stroke-width="1.5" opacity="0.2"/>
+  <line x1="140" y1="310" x2="115" y2="375" stroke="#6C63FF" stroke-width="1.5" opacity="0.20"/>
+  <line x1="884" y1="280" x2="905" y2="350" stroke="#EC4899" stroke-width="1.5" opacity="0.20"/>
   <line x1="890" y1="730" x2="868" y2="800" stroke="#A855F7" stroke-width="1.5" opacity="0.18"/>
 </svg>
