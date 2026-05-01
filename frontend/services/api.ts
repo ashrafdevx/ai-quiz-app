@@ -71,6 +71,25 @@ export const documentsApi = {
   get: (id: string) => api.get<{ document: Document }>(`/api/documents/${id}`),
 
   delete: (id: string) => api.delete<{ success: boolean }>(`/api/documents/${id}`),
+
+  transcribe: async (formData: FormData): Promise<{ transcript: string }> => {
+    const token = await SecureStore.getItemAsync('auth_token');
+    const res = await fetch(`${BASE_URL}/api/documents/transcribe`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      const err: any = new Error(json?.message ?? 'Transcription failed');
+      err.response = { status: res.status, data: json };
+      throw err;
+    }
+    return json as { transcript: string };
+  },
+
+  fromText: (text: string, name: string) =>
+    api.post<UploadResponse>('/api/documents/from-text', { text, name }),
 };
 
 // Question generation endpoints

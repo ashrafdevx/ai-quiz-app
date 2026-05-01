@@ -185,6 +185,30 @@ export default function UploadScreen() {
             </Pressable>
           </Animated.View>
 
+          {/* Audio input option */}
+          {!uploading && (
+            <View style={styles.orRow}>
+              <View style={styles.orLine} />
+              <Text style={styles.orText}>or</Text>
+              <View style={styles.orLine} />
+            </View>
+          )}
+          {!uploading && (
+            <Pressable
+              style={styles.audioBtn}
+              onPress={() => router.push('/audio-record')}
+            >
+              <View style={styles.audioBtnIcon}>
+                <Ionicons name="mic" size={20} color="#A855F7" />
+              </View>
+              <View style={styles.audioBtnText}>
+                <Text style={styles.audioBtnTitle}>Record Audio</Text>
+                <Text style={styles.audioBtnHint}>Speak your notes — we'll transcribe them</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.text.muted} />
+            </Pressable>
+          )}
+
           {/* Freshly uploaded doc */}
           {freshDoc && (
             <View style={styles.freshSection}>
@@ -275,6 +299,26 @@ const styles = StyleSheet.create({
   header:   { marginBottom: spacing['2xl'] },
   title:    { fontSize: typography.scale['2xl'], fontWeight: typography.weights.bold, color: colors.text.primary },
   subtitle: { fontSize: typography.scale.sm, color: colors.text.muted, marginTop: spacing.xs },
+
+  orRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
+  orLine: { flex: 1, height: 1, backgroundColor: colors.border.default },
+  orText: { marginHorizontal: spacing.md, fontSize: typography.scale.xs, color: colors.text.muted },
+  audioBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    backgroundColor: colors.bg.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1, borderColor: 'rgba(168,85,247,0.30)',
+    padding: spacing.lg,
+    marginBottom: spacing['2xl'],
+  },
+  audioBtnIcon: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(168,85,247,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  audioBtnText: { flex: 1 },
+  audioBtnTitle: { fontSize: typography.scale.base, fontWeight: typography.weights.semibold, color: colors.text.primary },
+  audioBtnHint: { fontSize: typography.scale.xs, color: colors.text.muted, marginTop: 2 },
 
   dropzone: {
     borderWidth: 2, borderStyle: 'dashed',

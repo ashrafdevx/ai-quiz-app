@@ -2,7 +2,9 @@ const express = require('express');
 const fs = require('fs');
 const router = express.Router();
 const upload = require('../middleware/upload');
+const audioUpload = require('../middleware/audioUpload');
 const { extractText } = require('../services/documentParser');
+const { transcribeAudio } = require('../services/geminiService');
 const Document = require('../models/Document');
 
 /**
@@ -99,6 +101,52 @@ router.get('/:id', async (req, res, next) => {
       });
     }
     res.json({ document: doc });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/documents/transcribe
+ * Accepts an audio file, transcribes it via Groq Whisper, returns raw transcript.
+ */
+router.post('/transcribe', audioUpload.single('audio'), async (req, res, next) => {
+  const audioPath = req.file?.path;
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No audio file received.', code: 'MISSING_AUDIO' });
+    }
+    const transcript = await transcribeAudio(audioPath);
+    res.json({ transcript });
+  } catch (err) {
+    next(err);
+  } finally {
+    if (audioPath) fs.unlink(audioPath, () => {});
+  }
+});
+
+/**
+ * POST /api/documents/from-text
+ * Saves a plain-text string as a Document (e.g. from a voice recording transcript).
+ * Body: { text: string, name?: string }
+ */
+router.post('/from-text', async (req, res, next) => {
+  try {
+    const { text, name } = req.body;
+    const trimmed = (text ?? '').trim();
+    if (trimmed.length < 20) {
+      return res.status(400).json({ success: false, message: 'Text is too short to generate questions from.', code: 'INVALID_INPUT' });
+    }
+    const fileName = name?.trim() || `Voice note ${new Date().toLocaleDateString('en-US')}`;
+    const doc = await Document.create({
+      userId:    req.userId,
+      fileName,
+      text:      trimmed,
+      wordCount: trimmed.split(/\s+/).length,
+      charCount: trimmed.length,
+      status:    'ready',
+    });
+    res.json({ documentId: doc._id, fileName: doc.fileName, wordCount: doc.wordCount, charCount: doc.charCount, status: doc.status });
   } catch (err) {
     next(err);
   }
