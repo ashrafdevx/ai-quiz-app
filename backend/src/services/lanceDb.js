@@ -58,6 +58,7 @@ async function getTable() {
 function _makeRow(session) {
   return {
     id:            session.id,
+    userId:        session.userId        ?? '',
     documentName:  session.documentName  ?? '',
     extractedText: session.extractedText ?? '',
     interviewType: session.interviewType ?? 'mixed',
@@ -99,7 +100,7 @@ function _parseRow(row) {
  * Create a new interview session.
  * Embeds the document text in the background so vector search works later.
  */
-async function createSession({ documentName, extractedText, questions, interviewType, difficulty }) {
+async function createSession({ userId, documentName, extractedText, questions, interviewType, difficulty }) {
   const table = await getTable();
 
   // Embed a trimmed version of the document (first 2000 chars keeps us inside
@@ -109,10 +110,11 @@ async function createSession({ documentName, extractedText, questions, interview
 
   const session = {
     id:            uuidv4(),
+    userId:        userId || '',
     documentName:  documentName || 'Untitled Document',
     extractedText: extractedText || '',
     interviewType: interviewType || 'mixed',
-    difficulty:    difficulty || 'mid',
+    difficulty:    difficulty    || 'mid',
     status:        'in_progress',
     questions:     questions,
     answers:       [],
@@ -183,15 +185,17 @@ async function completeSession(sessionId, feedback) {
 }
 
 /**
- * List all sessions, newest first, without extractedText.
+ * List sessions for a specific user, newest first, without extractedText.
+ * @param {string} userId
  */
-async function listSessions() {
+async function listSessions(userId) {
   const table = await getTable();
   const rows = await table.query().toArray();
 
   return rows
     .map(_parseRow)
-    .map(({ extractedText, ...rest }) => rest)   // strip large field
+    .filter(s => !userId || !s.userId || s.userId === userId)
+    .map(({ extractedText, ...rest }) => rest)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 

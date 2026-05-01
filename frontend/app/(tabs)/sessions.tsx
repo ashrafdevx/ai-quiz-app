@@ -6,21 +6,23 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import {
-  sessionsApi, dailyQuestApi,
-  type Session, type DailyQuestEntry,
+  sessionsApi, dailyQuestApi, interviewApi,
+  type Session, type DailyQuestEntry, type InterviewSession, type InterviewMessage,
 } from '../../services/api';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
 import { spacing, radius, screenPadding } from '../../constants/spacing';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type FeedItem =
-  | { kind: 'session'; data: Session;          date: Date }
-  | { kind: 'daily';   data: DailyQuestEntry;  date: Date };
+  | { kind: 'quiz';      data: Session;          date: Date }
+  | { kind: 'interview'; data: Omit<InterviewSession, 'messages'>; date: Date }
+  | { kind: 'daily';     data: DailyQuestEntry;  date: Date };
 
-type TypeFilter = 'all' | 'session' | 'daily';
+type TypeFilter = 'all' | 'quiz' | 'interview' | 'daily';
 type DateFilter = 'all' | 'today' | 'week';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -32,96 +34,333 @@ function isToday(d: Date) {
 function isThisWeek(d: Date) {
   return d >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 }
-function formatDate(d: Date) {
+function fmtDate(d: Date) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
-function scoreStyle(score: number) {
-  if (score >= 80) return { color: colors.accent.success, bg: 'rgba(16,185,129,0.15)' };
-  if (score >= 50) return { color: colors.accent.warning, bg: 'rgba(245,158,11,0.15)' };
-  return { color: colors.accent.danger, bg: 'rgba(239,68,68,0.15)' };
+function scoreColor(s: number) {
+  if (s >= 80) return { fg: colors.accent.success, bg: 'rgba(16,185,129,0.15)' };
+  if (s >= 50) return { fg: colors.accent.warning, bg: 'rgba(245,158,11,0.15)' };
+  return { fg: colors.accent.danger, bg: 'rgba(239,68,68,0.15)' };
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+const CATEGORY_COLOR: Record<string, string> = {
+  web: '#3B82F6', 'react-native': '#61DAFB', android: '#3DDC84',
+  devops: '#F97316', python: '#3776AB', java: '#ED8B00',
+  database: '#10B981', 'system-design': '#8B5CF6', behavioral: '#EC4899',
+  algorithms: '#6C63FF', javascript: '#F7DF1E', typescript: '#3178C6', other: '#94A3B8',
+};
 
-function ScoreBadge({ score }: { score: number }) {
-  const { color, bg } = scoreStyle(score);
+// ─── Score badge ──────────────────────────────────────────────────────────────
+
+function ScoreBadge({ score, suffix = '%' }: { score: number; suffix?: string }) {
+  const { fg, bg } = scoreColor(score);
   return (
-    <View style={[styles.badge, { backgroundColor: bg }]}>
-      <Text style={[styles.badgeText, { color }]}>{score}%</Text>
+    <View style={[badge.wrap, { backgroundColor: bg }]}>
+      <Text style={[badge.text, { color: fg }]}>{score}{suffix}</Text>
+    </View>
+  );
+}
+const badge = StyleSheet.create({
+  wrap: { borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 3 },
+  text: { fontSize: typography.scale.xs, fontWeight: typography.weights.bold },
+});
+
+// ─── Quiz card (expandable) ───────────────────────────────────────────────────
+
+function QuizCard({ session, onNavigate }: { session: Session; onNavigate: () => void }) {
+  const [open, setOpen] = useState(false);
+  const inProgress = session.status === 'in_progress';
+  const hasAnswers  = session.answers?.length > 0;
+
+  return (
+    <View style={[card.wrap, open && card.wrapOpen]}>
+      {/* Header row */}
+      <Pressable onPress={() => setOpen(v => !v)} style={card.row}>
+        <View style={[card.iconWrap, { backgroundColor: 'rgba(108,99,255,0.12)' }]}>
+          <Ionicons name="document-text" size={18} color="#6C63FF" />
+        </View>
+        <View style={card.body}>
+          <View style={card.kindRow}>
+            <View style={[card.kindBadge, { backgroundColor: 'rgba(108,99,255,0.12)' }]}>
+              <Text style={[card.kindText, { color: '#6C63FF' }]}>QUIZ</Text>
+            </View>
+            <Text style={card.meta}>{session.interviewType} · {session.difficulty}</Text>
+          </View>
+          <Text style={card.title} numberOfLines={1}>{session.documentName}</Text>
+          <Text style={card.date}>{fmtDate(new Date(session.createdAt))}</Text>
+        </View>
+        <View style={card.rightCol}>
+          {inProgress
+            ? <View style={[badge.wrap, { backgroundColor: 'rgba(56,189,248,0.15)' }]}>
+                <Text style={[badge.text, { color: colors.accent.info }]}>Active</Text>
+              </View>
+            : <ScoreBadge score={session.score} />
+          }
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.text.muted} />
+        </View>
+      </Pressable>
+
+      {/* Expanded: Q&A pairs */}
+      {open && (
+        <View style={card.expanded}>
+          {session.questions?.map((q, i) => {
+            const ans = session.answers?.find(a => a.questionId === q.id);
+            const fbQ = session.feedback?.questions?.find((fq: any) => fq.id === q.id);
+            return (
+              <View key={q.id} style={card.qaBlock}>
+                <Text style={card.qaIdx}>Q{i + 1}</Text>
+                <Text style={card.qaQuestion}>{q.text}</Text>
+                {ans?.transcript ? (
+                  <>
+                    <Text style={card.qaLabel}>Your answer</Text>
+                    <Text style={card.qaText}>{ans.transcript}</Text>
+                  </>
+                ) : (
+                  <Text style={card.qaSkipped}>— Skipped</Text>
+                )}
+                {fbQ && (
+                  <>
+                    <Text style={[card.qaLabel, { color: colors.accent.success }]}>Feedback</Text>
+                    {fbQ.strengths?.length > 0 && (
+                      <Text style={card.qaText}>✓ {fbQ.strengths.join(' · ')}</Text>
+                    )}
+                    {fbQ.improvements?.length > 0 && (
+                      <Text style={card.qaText}>↑ {fbQ.improvements.join(' · ')}</Text>
+                    )}
+                  </>
+                )}
+              </View>
+            );
+          })}
+          {!hasAnswers && (
+            <Text style={card.noData}>No answers recorded yet.</Text>
+          )}
+          <Pressable onPress={onNavigate} style={card.viewBtn}>
+            <Text style={card.viewBtnText}>
+              {inProgress ? 'Continue session →' : 'View full results →'}
+            </Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
 
-function SessionCard({ session, onPress }: { session: Session; onPress: () => void }) {
-  const inProgress = session.status === 'in_progress';
+// ─── Interview card (expandable, lazy-loads messages) ─────────────────────────
+
+function InterviewCard({ session }: { session: Omit<InterviewSession, 'messages'> }) {
+  const [open,        setOpen]        = useState(false);
+  const [messages,    setMessages]    = useState<InterviewMessage[] | null>(null);
+  const [loadingMsgs, setLoadingMsgs] = useState(false);
+
+  const catColor = CATEGORY_COLOR[session.category] ?? '#94A3B8';
+
+  async function handleExpand() {
+    setOpen(v => !v);
+    if (!messages && !loadingMsgs) {
+      setLoadingMsgs(true);
+      try {
+        const { data } = await interviewApi.get(session._id);
+        setMessages(data.session.messages);
+      } catch { setMessages([]); }
+      finally { setLoadingMsgs(false); }
+    }
+  }
+
+  // Group messages into Q&A+feedback triplets
+  const pairs: Array<{ question: string; answer: string; mode: string; evaluation: any }> = [];
+  if (messages) {
+    const byIndex: Record<number, { q?: string; a?: string; mode?: string; ev?: any }> = {};
+    for (const m of messages) {
+      const idx = m.questionIndex ?? 0;
+      if (!byIndex[idx]) byIndex[idx] = {};
+      if (m.role === 'ai')       byIndex[idx].q  = m.content;
+      if (m.role === 'user')     { byIndex[idx].a  = m.content; byIndex[idx].mode = m.inputMode; }
+      if (m.role === 'feedback') byIndex[idx].ev = m.evaluation;
+    }
+    for (const idx of Object.keys(byIndex).map(Number).sort()) {
+      const p = byIndex[idx];
+      if (p.q) pairs.push({ question: p.q, answer: p.a ?? '—', mode: p.mode ?? 'text', evaluation: p.ev });
+    }
+  }
+
   return (
-    <Pressable style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]} onPress={onPress}>
-      <View style={styles.cardRow}>
-        <Text style={styles.cardIcon}>📄</Text>
-        <View style={styles.cardBody}>
-          <View style={styles.kindRow}>
-            <View style={styles.kindBadge}><Text style={styles.kindText}>Quiz</Text></View>
-          </View>
-          <Text style={styles.cardName} numberOfLines={1}>{session.documentName}</Text>
-          <Text style={styles.cardMeta}>
-            {session.questions.length} questions · {session.interviewType} · {session.difficulty}
-          </Text>
-          <Text style={styles.cardDate}>{formatDate(new Date(session.createdAt))}</Text>
+    <View style={[card.wrap, open && card.wrapOpen]}>
+      {/* Header row */}
+      <Pressable onPress={handleExpand} style={card.row}>
+        <View style={[card.iconWrap, { backgroundColor: `${catColor}18` }]}>
+          <Ionicons name="chatbubbles" size={18} color={catColor} />
         </View>
-        {inProgress
-          ? <View style={[styles.badge, { backgroundColor: 'rgba(56,189,248,0.15)' }]}>
-              <Text style={[styles.badgeText, { color: colors.accent.info }]}>In Progress</Text>
+        <View style={card.body}>
+          <View style={card.kindRow}>
+            <View style={[card.kindBadge, { backgroundColor: `${catColor}18` }]}>
+              <Text style={[card.kindText, { color: catColor }]}>INTERVIEW</Text>
             </View>
-          : <ScoreBadge score={session.score} />
-        }
-      </View>
-    </Pressable>
+            <Text style={card.meta}>{session.category}</Text>
+          </View>
+          <Text style={card.title} numberOfLines={1}>{session.topic}</Text>
+          <Text style={card.date}>{fmtDate(new Date(session.createdAt))}</Text>
+        </View>
+        <View style={card.rightCol}>
+          {session.avgScore > 0 ? <ScoreBadge score={session.avgScore} /> : (
+            <View style={[badge.wrap, { backgroundColor: 'rgba(56,189,248,0.15)' }]}>
+              <Text style={[badge.text, { color: colors.accent.info }]}>
+                {session.status === 'completed' ? 'Done' : 'Active'}
+              </Text>
+            </View>
+          )}
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.text.muted} />
+        </View>
+      </Pressable>
+
+      {/* Expanded */}
+      {open && (
+        <View style={card.expanded}>
+          {loadingMsgs ? (
+            <ActivityIndicator color={colors.accent.primary} style={{ marginVertical: spacing.lg }} />
+          ) : pairs.length === 0 ? (
+            <Text style={card.noData}>No Q&A recorded yet.</Text>
+          ) : (
+            pairs.map((p, i) => {
+              const sc = p.evaluation?.score;
+              return (
+                <View key={i} style={card.qaBlock}>
+                  <Text style={card.qaIdx}>Q{i + 1}</Text>
+                  <Text style={card.qaQuestion}>{p.question}</Text>
+                  {p.mode === 'voice' && (
+                    <View style={interviewCard.voiceTag}>
+                      <Ionicons name="mic" size={11} color="#A855F7" />
+                      <Text style={interviewCard.voiceText}>Voice</Text>
+                    </View>
+                  )}
+                  <Text style={card.qaLabel}>Your answer</Text>
+                  <Text style={card.qaText}>{p.answer}</Text>
+                  {p.evaluation && (
+                    <>
+                      <View style={interviewCard.evalRow}>
+                        {sc != null && (
+                          <ScoreBadge score={sc} suffix="/100" />
+                        )}
+                        <Text style={card.qaText} numberOfLines={2}>{p.evaluation.feedback}</Text>
+                      </View>
+                      {p.evaluation.improvedAnswer ? (
+                        <>
+                          <Text style={[card.qaLabel, { color: '#6C63FF' }]}>Model answer</Text>
+                          <Text style={card.qaText}>{p.evaluation.improvedAnswer}</Text>
+                        </>
+                      ) : null}
+                    </>
+                  )}
+                </View>
+              );
+            })
+          )}
+        </View>
+      )}
+    </View>
   );
 }
 
-function DailyCard({ entry }: { entry: DailyQuestEntry }) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <Pressable style={[styles.card, expanded && styles.cardOpen]} onPress={() => setExpanded(v => !v)}>
-      <View style={styles.cardRow}>
-        <Text style={styles.cardIcon}>📅</Text>
-        <View style={styles.cardBody}>
-          <View style={styles.kindRow}>
-            <View style={[styles.kindBadge, { backgroundColor: 'rgba(168,85,247,0.12)' }]}>
-              <Text style={[styles.kindText, { color: '#A855F7' }]}>Daily</Text>
-            </View>
-            <Text style={styles.diffText}>{entry.difficulty}</Text>
-          </View>
-          <Text style={styles.cardName} numberOfLines={expanded ? undefined : 2}>{entry.question}</Text>
-          <Text style={styles.cardDate}>{formatDate(new Date(entry.completedAt))}</Text>
-        </View>
-        <View style={styles.rightCol}>
-          <ScoreBadge score={entry.score} />
-          <Text style={styles.chevron}>{expanded ? '▲' : '▼'}</Text>
-        </View>
-      </View>
+const interviewCard = StyleSheet.create({
+  voiceTag:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
+  voiceText: { fontSize: 10, color: '#A855F7' },
+  evalRow:   { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: 4 },
+});
 
-      {expanded && (
-        <View style={styles.expanded}>
-          <View style={styles.qaBlock}>
-            <Text style={styles.qaLabel}>Your Answer</Text>
-            <Text style={styles.qaText}>{entry.userAnswer}</Text>
+// ─── Daily card (expandable) ──────────────────────────────────────────────────
+
+function DailyCard({ entry }: { entry: DailyQuestEntry }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={[card.wrap, open && card.wrapOpen]}>
+      <Pressable onPress={() => setOpen(v => !v)} style={card.row}>
+        <View style={[card.iconWrap, { backgroundColor: 'rgba(168,85,247,0.12)' }]}>
+          <Ionicons name="star" size={18} color="#A855F7" />
+        </View>
+        <View style={card.body}>
+          <View style={card.kindRow}>
+            <View style={[card.kindBadge, { backgroundColor: 'rgba(168,85,247,0.12)' }]}>
+              <Text style={[card.kindText, { color: '#A855F7' }]}>DAILY</Text>
+            </View>
+            <Text style={card.meta}>{entry.difficulty} · {entry.topic}</Text>
           </View>
-          <View style={styles.qaBlock}>
-            <Text style={styles.qaLabel}>AI Feedback</Text>
-            <Text style={styles.qaText}>{entry.feedback}</Text>
+          <Text style={card.title} numberOfLines={open ? 0 : 2}>{entry.question}</Text>
+          <Text style={card.date}>{fmtDate(new Date(entry.completedAt))}</Text>
+        </View>
+        <View style={card.rightCol}>
+          <ScoreBadge score={entry.score} />
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.text.muted} />
+        </View>
+      </Pressable>
+
+      {open && (
+        <View style={card.expanded}>
+          <View style={card.qaBlock}>
+            <Text style={card.qaLabel}>Your Answer</Text>
+            <Text style={card.qaText}>{entry.userAnswer}</Text>
           </View>
-          <View style={styles.qaBlock}>
-            <Text style={[styles.qaLabel, { color: colors.accent.success }]}>Correct Answer</Text>
-            <Text style={styles.qaText}>{entry.correctAnswer}</Text>
+          <View style={card.qaBlock}>
+            <Text style={card.qaLabel}>AI Feedback</Text>
+            <Text style={card.qaText}>{entry.feedback}</Text>
+          </View>
+          <View style={card.qaBlock}>
+            <Text style={[card.qaLabel, { color: colors.accent.success }]}>Correct Answer</Text>
+            <Text style={card.qaText}>{entry.correctAnswer}</Text>
           </View>
         </View>
       )}
-    </Pressable>
+    </View>
   );
 }
 
+// ─── Shared card styles ───────────────────────────────────────────────────────
+
+const card = StyleSheet.create({
+  wrap: {
+    backgroundColor: colors.bg.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1, borderColor: colors.border.default,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  wrapOpen: { borderColor: colors.accent.primary },
+  row:      { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  iconWrap: { width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  body:     { flex: 1 },
+  rightCol: { alignItems: 'flex-end', gap: spacing.xs },
+  kindRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: 4 },
+  kindBadge:{ borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 2 },
+  kindText: { fontSize: 9, fontWeight: typography.weights.black, letterSpacing: 0.8 },
+  meta:     { fontSize: typography.scale.xs, color: colors.text.muted, textTransform: 'capitalize' },
+  title:    { fontSize: typography.scale.base, fontWeight: typography.weights.semibold, color: colors.text.primary, marginBottom: 2 },
+  date:     { fontSize: typography.scale.xs, color: colors.text.muted },
+
+  // Expanded area
+  expanded: { marginTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border.subtle, paddingTop: spacing.lg, gap: spacing.lg },
+  qaBlock:  { gap: 4 },
+  qaIdx:    { fontSize: typography.scale.xs, fontWeight: typography.weights.bold, color: colors.accent.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  qaQuestion:{ fontSize: typography.scale.sm, fontWeight: typography.weights.semibold, color: colors.text.primary, lineHeight: 20, marginBottom: 4 },
+  qaLabel:  { fontSize: typography.scale.xs, fontWeight: typography.weights.semibold, color: colors.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  qaText:   { fontSize: typography.scale.sm, color: colors.text.secondary, lineHeight: 20, flex: 1 },
+  qaSkipped:{ fontSize: typography.scale.sm, color: colors.text.muted, fontStyle: 'italic' },
+  noData:   { fontSize: typography.scale.sm, color: colors.text.muted, textAlign: 'center', paddingVertical: spacing.md },
+  viewBtn:  { alignSelf: 'flex-start', marginTop: spacing.xs },
+  viewBtnText:{ fontSize: typography.scale.xs, color: colors.accent.primary, fontWeight: typography.weights.semibold },
+});
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
+
+const TYPE_FILTERS: { key: TypeFilter; label: string }[] = [
+  { key: 'all',       label: 'All' },
+  { key: 'quiz',      label: 'Quiz' },
+  { key: 'interview', label: 'Interview' },
+  { key: 'daily',     label: 'Daily' },
+];
+const DATE_FILTERS: { key: DateFilter; label: string }[] = [
+  { key: 'all',   label: 'All Time' },
+  { key: 'today', label: 'Today' },
+  { key: 'week',  label: 'This Week' },
+];
 
 export default function SessionsScreen() {
   const router = useRouter();
@@ -131,24 +370,28 @@ export default function SessionsScreen() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
 
-  const load = async (silent = false) => {
+  const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [sessRes, dqRes] = await Promise.all([
+      const [sessRes, dqRes, ivRes] = await Promise.all([
         sessionsApi.list(),
         dailyQuestApi.history(500, 0),
+        interviewApi.list(50, 0),
       ]);
 
-      const sessionItems: FeedItem[] = (Array.isArray(sessRes.data) ? sessRes.data : []).map(s => ({
-        kind: 'session' as const, data: s, date: new Date(s.createdAt),
-      }));
+      const quizItems: FeedItem[] = (Array.isArray(sessRes.data) ? sessRes.data : [])
+        .map(s => ({ kind: 'quiz' as const, data: s, date: new Date(s.createdAt) }));
 
       const dailyItems: FeedItem[] = (dqRes.data.days ?? [])
         .flatMap(d => d.entries)
         .map(e => ({ kind: 'daily' as const, data: e, date: new Date(e.completedAt) }));
 
+      const ivItems: FeedItem[] = (ivRes.data.sessions ?? [])
+        .map(s => ({ kind: 'interview' as const, data: s, date: new Date(s.createdAt) }));
+
       setItems(
-        [...sessionItems, ...dailyItems].sort((a, b) => b.date.getTime() - a.date.getTime())
+        [...quizItems, ...dailyItems, ...ivItems]
+          .sort((a, b) => b.date.getTime() - a.date.getTime())
       );
     } catch {
       setItems([]);
@@ -156,23 +399,29 @@ export default function SessionsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, []));
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
   const onRefresh = () => { setRefreshing(true); load(true); };
 
   const visible = items.filter(item => {
-    if (typeFilter === 'session' && item.kind !== 'session') return false;
-    if (typeFilter === 'daily'   && item.kind !== 'daily')   return false;
-    if (dateFilter === 'today'   && !isToday(item.date))     return false;
-    if (dateFilter === 'week'    && !isThisWeek(item.date))  return false;
+    if (typeFilter !== 'all' && item.kind !== typeFilter)    return false;
+    if (dateFilter === 'today' && !isToday(item.date))      return false;
+    if (dateFilter === 'week'  && !isThisWeek(item.date))   return false;
     return true;
   });
+
+  const emptyMsg =
+    typeFilter === 'daily'     ? 'Complete daily quests to see them here.' :
+    typeFilter === 'interview' ? 'Start an AI Interview to see sessions here.' :
+                                 'Upload a document and start a quiz session.';
 
   return (
     <LinearGradient colors={['#0A0B0F', '#0D1018', '#0A0B0F']} style={styles.bg}>
       <View style={styles.orb1} />
       <View style={styles.orb2} />
+
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView
           style={styles.scroll}
@@ -184,11 +433,11 @@ export default function SessionsScreen() {
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>Sessions</Text>
-              <Text style={styles.subtitle}>Your complete quiz history</Text>
+              <Text style={styles.subtitle}>Your complete activity history</Text>
             </View>
             <Pressable
-              style={({ pressed }) => [styles.newBtn, pressed && { opacity: 0.8 }]}
-              onPress={() => router.push('/session/new')}
+              style={styles.newBtn}
+              onPress={() => router.push('/(tabs)/upload')}
             >
               <LinearGradient
                 colors={['#6C63FF', '#A855F7']}
@@ -200,53 +449,61 @@ export default function SessionsScreen() {
             </Pressable>
           </View>
 
-          {/* Type filter */}
-          <View style={styles.filterRow}>
-            {(['all', 'session', 'daily'] as TypeFilter[]).map(f => (
+          {/* ── Single filter row ── */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+          >
+            {/* Type filters */}
+            {TYPE_FILTERS.map(f => (
               <Pressable
-                key={f}
-                style={[styles.chip, typeFilter === f && styles.chipActive]}
-                onPress={() => setTypeFilter(f)}
+                key={f.key}
+                style={[styles.chip, typeFilter === f.key && styles.chipTypeActive]}
+                onPress={() => setTypeFilter(f.key)}
               >
-                <Text style={[styles.chipText, typeFilter === f && styles.chipTextActive]}>
-                  {f === 'all' ? 'All' : f === 'session' ? 'Quiz' : 'Daily'}
+                <Text style={[styles.chipText, typeFilter === f.key && styles.chipTextActive]}>
+                  {f.label}
                 </Text>
               </Pressable>
             ))}
-          </View>
 
-          {/* Date filter */}
-          <View style={[styles.filterRow, { marginBottom: spacing.xl }]}>
-            {(['all', 'today', 'week'] as DateFilter[]).map(f => (
+            {/* Divider */}
+            <View style={styles.filterDivider} />
+
+            {/* Date filters */}
+            {DATE_FILTERS.map(f => (
               <Pressable
-                key={f}
-                style={[styles.chip, dateFilter === f && styles.chipDate]}
-                onPress={() => setDateFilter(f)}
+                key={f.key}
+                style={[styles.chip, dateFilter === f.key && styles.chipDateActive]}
+                onPress={() => setDateFilter(f.key)}
               >
-                <Text style={[styles.chipText, dateFilter === f && styles.chipTextActive]}>
-                  {f === 'all' ? 'All Time' : f === 'today' ? 'Today' : 'This Week'}
+                <Text style={[styles.chipText, dateFilter === f.key && styles.chipTextActive]}>
+                  {f.label}
                 </Text>
               </Pressable>
             ))}
-          </View>
+          </ScrollView>
+
+          {/* Count */}
+          {!loading && (
+            <Text style={styles.countText}>
+              {visible.length} {visible.length === 1 ? 'record' : 'records'}
+            </Text>
+          )}
 
           {/* List */}
           {loading ? (
             <ActivityIndicator color={colors.accent.primary} style={{ marginTop: spacing['3xl'] }} />
           ) : visible.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>🎯</Text>
-              <Text style={styles.emptyTitle}>No records yet</Text>
-              <Text style={styles.emptyBody}>
-                {typeFilter === 'daily'
-                  ? 'Complete daily quests to see them here.'
-                  : 'Upload a document and start your first quiz session.'}
-              </Text>
-              {typeFilter !== 'daily' && (
-                <Pressable
-                  style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push('/session/new')}
-                >
+              <View style={styles.emptyIcon}>
+                <Ionicons name="layers-outline" size={40} color={colors.text.muted} />
+              </View>
+              <Text style={styles.emptyTitle}>Nothing here yet</Text>
+              <Text style={styles.emptyBody}>{emptyMsg}</Text>
+              {typeFilter !== 'daily' && typeFilter !== 'interview' && (
+                <Pressable onPress={() => router.push('/(tabs)/upload')} style={styles.emptyBtn}>
                   <LinearGradient
                     colors={['#6C63FF', '#A855F7', '#EC4899']}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
@@ -258,22 +515,26 @@ export default function SessionsScreen() {
               )}
             </View>
           ) : (
-            <View style={styles.list}>
-              {visible.map(item =>
-                item.kind === 'session' ? (
-                  <SessionCard
-                    key={`s-${item.data.id}`}
+            <View>
+              {visible.map(item => {
+                if (item.kind === 'quiz') return (
+                  <QuizCard
+                    key={`q-${item.data.id}`}
                     session={item.data}
-                    onPress={() =>
+                    onNavigate={() =>
                       item.data.status === 'completed'
                         ? router.push({ pathname: '/session/result', params: { id: item.data.id } })
                         : router.push(`/session/${item.data.id}`)
                     }
                   />
-                ) : (
+                );
+                if (item.kind === 'interview') return (
+                  <InterviewCard key={`i-${item.data._id}`} session={item.data} />
+                );
+                return (
                   <DailyCard key={`d-${item.data._id}`} entry={item.data} />
-                )
-              )}
+                );
+              })}
             </View>
           )}
         </ScrollView>
@@ -282,7 +543,7 @@ export default function SessionsScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Screen styles ────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   bg:       { flex: 1 },
@@ -292,60 +553,29 @@ const styles = StyleSheet.create({
   scroll:    { flex: 1 },
   container: { paddingHorizontal: screenPadding, paddingTop: spacing.md, paddingBottom: spacing['2xl'] },
 
-  header:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
+  header:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl },
   title:      { fontSize: typography.scale['2xl'], fontWeight: typography.weights.bold, color: colors.text.primary },
   subtitle:   { fontSize: typography.scale.sm, color: colors.text.muted, marginTop: 2 },
   newBtn:     { borderRadius: radius.full },
   newBtnGrad: { borderRadius: radius.full, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   newBtnText: { color: '#fff', fontSize: typography.scale.sm, fontWeight: typography.weights.semibold },
 
-  filterRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
-  chip:      { borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: 6, borderWidth: 1, borderColor: colors.border.default, backgroundColor: 'transparent' },
-  chipActive: { backgroundColor: 'rgba(108,99,255,0.18)', borderColor: colors.accent.primary },
-  chipDate:   { backgroundColor: 'rgba(168,85,247,0.18)', borderColor: '#A855F7' },
-  chipText:      { fontSize: typography.scale.xs, color: colors.text.muted, fontWeight: typography.weights.medium },
-  chipTextActive: { color: colors.text.primary },
+  // Single filter row
+  filterRow:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: screenPadding, paddingBottom: spacing.lg },
+  chip:         { borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: 6, borderWidth: 1, borderColor: colors.border.default },
+  chipTypeActive:{ backgroundColor: 'rgba(108,99,255,0.18)', borderColor: colors.accent.primary },
+  chipDateActive:{ backgroundColor: 'rgba(168,85,247,0.18)', borderColor: '#A855F7' },
+  chipText:     { fontSize: typography.scale.xs, color: colors.text.muted, fontWeight: typography.weights.medium },
+  chipTextActive:{ color: colors.text.primary },
+  filterDivider: { width: 1, height: 16, backgroundColor: colors.border.default, marginHorizontal: spacing.xs },
 
-  list: { gap: spacing.md },
+  countText: { fontSize: typography.scale.xs, color: colors.text.muted, marginBottom: spacing.md },
 
-  card: {
-    backgroundColor: colors.bg.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    padding: spacing.lg,
-  },
-  cardOpen: { borderColor: colors.accent.primary },
-
-  cardRow:  { flexDirection: 'row', alignItems: 'flex-start' },
-  cardIcon: { fontSize: 26, marginRight: spacing.md, marginTop: 2 },
-  cardBody: { flex: 1 },
-
-  kindRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.xs },
-  kindBadge: { borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 2, backgroundColor: 'rgba(108,99,255,0.12)' },
-  kindText:  { fontSize: 10, fontWeight: typography.weights.bold, color: colors.accent.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
-  diffText:  { fontSize: 10, color: colors.text.muted, textTransform: 'capitalize' },
-
-  cardName: { fontSize: typography.scale.base, fontWeight: typography.weights.semibold, color: colors.text.primary, marginBottom: 2 },
-  cardMeta: { fontSize: typography.scale.xs, color: colors.text.secondary, textTransform: 'capitalize', marginBottom: 2 },
-  cardDate: { fontSize: typography.scale.xs, color: colors.text.muted },
-
-  badge:     { borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 3, marginLeft: spacing.sm },
-  badgeText: { fontSize: typography.scale.xs, fontWeight: typography.weights.bold },
-
-  rightCol: { alignItems: 'center', gap: spacing.xs },
-  chevron:  { fontSize: 9, color: colors.text.muted, marginTop: 4 },
-
-  expanded: { marginTop: spacing.lg, gap: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.subtle, paddingTop: spacing.lg },
-  qaBlock:  { gap: 4 },
-  qaLabel:  { fontSize: typography.scale.xs, fontWeight: typography.weights.semibold, color: colors.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  qaText:   { fontSize: typography.scale.sm, color: colors.text.secondary, lineHeight: 20 },
-
-  empty:        { alignItems: 'center', paddingTop: spacing['3xl'] },
-  emptyIcon:    { fontSize: 56, marginBottom: spacing.lg },
-  emptyTitle:   { fontSize: typography.scale.lg, fontWeight: typography.weights.bold, color: colors.text.primary, marginBottom: spacing.sm },
-  emptyBody:    { fontSize: typography.scale.sm, color: colors.text.muted, textAlign: 'center', marginBottom: spacing['2xl'], paddingHorizontal: spacing.xl },
-  emptyBtn:     { borderRadius: radius.md },
-  emptyBtnGrad: { borderRadius: radius.md, paddingHorizontal: spacing['2xl'], paddingVertical: spacing.md },
-  emptyBtnText: { color: '#fff', fontSize: typography.scale.base, fontWeight: typography.weights.semibold },
+  empty:       { alignItems: 'center', paddingTop: spacing['3xl'], gap: spacing.lg },
+  emptyIcon:   { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.bg.surface, alignItems: 'center', justifyContent: 'center' },
+  emptyTitle:  { fontSize: typography.scale.lg, fontWeight: typography.weights.bold, color: colors.text.primary },
+  emptyBody:   { fontSize: typography.scale.sm, color: colors.text.muted, textAlign: 'center', paddingHorizontal: spacing.xl },
+  emptyBtn:    { borderRadius: radius.md },
+  emptyBtnGrad:{ borderRadius: radius.md, paddingHorizontal: spacing['2xl'], paddingVertical: spacing.md },
+  emptyBtnText:{ color: '#fff', fontSize: typography.scale.base, fontWeight: typography.weights.semibold },
 });

@@ -20,6 +20,7 @@ router.post('/', async (req, res, next) => {
 
   try {
     const session = await store.createSession({
+      userId: req.userId,
       documentName: documentName || 'Untitled Document',
       extractedText,
       questions,
@@ -41,7 +42,7 @@ router.post('/', async (req, res, next) => {
  */
 router.get('/', async (req, res, next) => {
   try {
-    res.json(await store.listSessions());
+    res.json(await store.listSessions(req.userId));
   } catch (err) {
     next(err);
   }
