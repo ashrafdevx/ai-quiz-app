@@ -94,6 +94,24 @@ export default function HomeScreen() {
             </LinearGradient>
           </Pressable>
 
+          {/* ── AI Interview banner ── */}
+          <Pressable onPress={() => router.navigate('/interview')} style={styles.interviewWrapper}>
+            <LinearGradient
+              colors={['rgba(108,99,255,0.18)', 'rgba(168,85,247,0.18)']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={styles.interviewCard}
+            >
+              <View style={styles.interviewIconWrap}>
+                <Ionicons name="chatbubbles" size={22} color="#A855F7" />
+              </View>
+              <View style={styles.interviewTextWrap}>
+                <Text style={styles.interviewTitle}>AI Interview Practice</Text>
+                <Text style={styles.interviewSub}>Chat-style Q&A with instant feedback</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="rgba(168,85,247,0.7)" />
+            </LinearGradient>
+          </Pressable>
+
           {/* ── Stats ── */}
           <Text style={styles.sectionLabel}>YOUR PROGRESS</Text>
           <View style={styles.statsGrid}>
@@ -253,6 +271,14 @@ function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
     heroTextWrap:{ flex: 1 },
     heroTitle:   { fontSize: typography.scale.lg, fontWeight: typography.weights.bold, color: '#fff' },
     heroSub:     { fontSize: typography.scale.sm, color: 'rgba(255,255,255,0.72)', marginTop: 3 },
+
+    // AI Interview banner
+    interviewWrapper:  { marginBottom: spacing['2xl'] },
+    interviewCard:     { borderRadius: radius.xl, padding: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: 'rgba(168,85,247,0.25)' },
+    interviewIconWrap: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: 'rgba(168,85,247,0.15)', alignItems: 'center', justifyContent: 'center' },
+    interviewTextWrap: { flex: 1 },
+    interviewTitle:    { fontSize: typography.scale.base, fontWeight: typography.weights.semibold, color: colors.text.primary },
+    interviewSub:      { fontSize: typography.scale.xs, color: colors.text.muted, marginTop: 2 },
 
     // Section labels
     sectionLabel:{

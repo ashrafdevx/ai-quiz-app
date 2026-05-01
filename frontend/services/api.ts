@@ -373,6 +373,87 @@ export interface DailyQuestHistory {
   total: number;
 }
 
+// ── Interview API ─────────────────────────────────────────────────────────────
+
+export interface InterviewEvaluation {
+  score:         number;
+  feedback:      string;
+  mistakes:      string[];
+  improvements:  string[];
+  improvedAnswer:string;
+}
+
+export interface InterviewMessage {
+  _id:             string;
+  role:            'ai' | 'user' | 'feedback';
+  content:         string;
+  questionIndex:   number;
+  inputMode?:      'text' | 'voice';
+  voiceTranscript?:string;
+  evaluation?:     InterviewEvaluation;
+  createdAt:       string;
+}
+
+export interface InterviewSession {
+  _id:           string;
+  topic:         string;
+  category:      string;
+  status:        'active' | 'completed';
+  messages:      InterviewMessage[];
+  questionCount: number;
+  avgScore:      number;
+  createdAt:     string;
+  completedAt:   string | null;
+}
+
+export const interviewApi = {
+  start: (topic: string) =>
+    api.post<{ sessionId: string; category: string; question: string }>(
+      '/api/interview/start', { topic }
+    ),
+
+  answer: (id: string, answer: string, questionIndex: number, inputMode: 'text' | 'voice' = 'text') =>
+    api.post<{ evaluation: InterviewEvaluation }>(
+      `/api/interview/${id}/answer`, { answer, questionIndex, inputMode }
+    ),
+
+  voice: async (id: string, audioUri: string, questionIndex: number): Promise<{ transcript: string; evaluation: InterviewEvaluation }> => {
+    const token = await SecureStore.getItemAsync('auth_token');
+    const formData = new FormData();
+    formData.append('audio', { uri: audioUri, name: 'answer.m4a', type: 'audio/m4a' } as any);
+    formData.append('questionIndex', String(questionIndex));
+
+    const res = await fetch(`${BASE_URL}/api/interview/${id}/voice`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      const err: any = new Error(json?.message ?? 'Voice submission failed');
+      err.response = { status: res.status, data: json };
+      throw err;
+    }
+    return json;
+  },
+
+  next: (id: string) =>
+    api.post<{ question: string; questionIndex: number }>(`/api/interview/${id}/next`, {}),
+
+  complete: (id: string) =>
+    api.post<{ sessionId: string; avgScore: number; questionCount: number; answeredCount: number }>(
+      `/api/interview/${id}/complete`, {}
+    ),
+
+  get: (id: string) =>
+    api.get<{ session: InterviewSession }>(`/api/interview/${id}`),
+
+  list: (limit = 20, skip = 0) =>
+    api.get<{ sessions: Omit<InterviewSession, 'messages'>[] }>(
+      `/api/interview?limit=${limit}&skip=${skip}`
+    ),
+};
+
 /** Extract user-facing message from any API or network error. */
 export function extractMessage(
   err: any,

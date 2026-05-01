@@ -213,6 +213,90 @@ Return ONLY valid JSON — no markdown, no explanation:
   "feedback": "<1-2 sentences: what they got right and what was missing>"
 }`;
 
+// ── AI Interview prompts ──────────────────────────────────────────────────────
+
+const INTERVIEW_CATEGORIES = [
+  'web', 'react-native', 'android', 'devops', 'python', 'java',
+  'database', 'system-design', 'behavioral', 'algorithms',
+  'javascript', 'typescript', 'other',
+];
+
+/**
+ * Detects category and generates the first interview question for a given topic.
+ * @param {string} topic  — user's free-text prompt
+ */
+const interviewStartPrompt = (topic) =>
+  `You are an expert technical interviewer. The candidate wants to practice: "${topic}"
+
+Tasks:
+1. Detect the most fitting category from this list: ${INTERVIEW_CATEGORIES.join(', ')}
+2. Generate the FIRST interview question for this topic.
+
+Question rules:
+- Open-ended, requires a thoughtful 2–4 sentence answer
+- Mid-level difficulty — assume the candidate has 2–3 years of experience
+- Clear, concise phrasing — no fluff
+- Do NOT number or prefix it
+
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "category": "...",
+  "question": "..."
+}`;
+
+/**
+ * Generates the next interview question, aware of what has already been asked.
+ * @param {string}   topic
+ * @param {string}   category
+ * @param {string[]} previousQuestions
+ */
+const interviewNextQuestionPrompt = (topic, category, previousQuestions) =>
+  `You are conducting a ${category} interview on the topic: "${topic}"
+
+Questions already asked (do NOT repeat these):
+${previousQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+Generate the NEXT interview question. It must:
+- Be entirely different from all previous questions
+- Progress naturally in complexity
+- Stay within the same topic/category
+- Be open-ended, not answerable with yes/no
+
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "question": "..."
+}`;
+
+/**
+ * Immediately evaluates a single answer in the chat interview flow.
+ * @param {string} topic
+ * @param {string} question
+ * @param {string} answer
+ */
+const interviewEvalPrompt = (topic, question, answer) =>
+  `You are an expert interviewer evaluating a candidate's answer.
+
+Topic: ${topic}
+Question: ${question}
+Candidate's Answer: ${answer || '[No answer provided]'}
+
+Scoring guide:
+- 80–100: Excellent — covers all key points with clarity and depth
+- 60–79: Good — mostly correct with minor gaps or imprecision
+- 40–59: Partial — some correct points but significant gaps
+- 0–39: Needs work — major gaps, off-topic, or incorrect
+
+Evaluate on: accuracy, completeness, clarity, and technical depth.
+
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "score": <0-100>,
+  "feedback": "<2–3 sentence verdict: what was strong and what was missing>",
+  "mistakes": ["specific error or gap 1", "specific error or gap 2"],
+  "improvements": ["actionable suggestion 1", "actionable suggestion 2"],
+  "improvedAnswer": "<model answer in 3–5 sentences showing what an excellent response looks like>"
+}`;
+
 module.exports = {
   extractionPrompt,
   questionGenerationPrompt,
@@ -220,4 +304,7 @@ module.exports = {
   singleAnswerEvalPrompt,
   dailyQuestGenerationPrompt,
   dailyQuestEvalPrompt,
+  interviewStartPrompt,
+  interviewNextQuestionPrompt,
+  interviewEvalPrompt,
 };
