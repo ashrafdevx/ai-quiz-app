@@ -9,6 +9,14 @@
 
 A mobile app that turns any document into an interactive quiz or AI interview session. Upload a PDF, Word doc, or voice note and Quizly generates questions, evaluates your answers, and tracks your progress over time.
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="./assets/screenshots/home.png" width="220"/>
+  <img src="./assets/screenshots/quiz.png" width="220"/>
+  <img src="./assets/screenshots/results.png" width="220"/>
+</p>
+
 ---
 
 ## Features
