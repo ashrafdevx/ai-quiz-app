@@ -3,6 +3,17 @@
 A mobile app that turns any document into an interactive quiz or AI interview session. Upload a PDF, Word doc, or voice note and Quizly generates questions, evaluates your answers, and tracks your progress over time.
 
 ---
+# Quizly — AI-Powered Interview & Quiz Practice
+
+![React Native](https://img.shields.io/badge/React_Native-20232A?style=flat&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)
+![Expo](https://img.shields.io/badge/Expo-000020?style=flat&logo=expo)
+![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=flat&logo=mongodb&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat)
+
+A mobile app that turns any document...   ← your existing description starts here
+
+---
 
 ## Features
 
